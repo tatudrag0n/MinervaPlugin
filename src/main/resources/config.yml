@@ -1,0 +1,308 @@
+local-chat-radius: 50.0
+hub-protection-radius-chunks: 4
+warningDays: 7
+regenIntervalDays: 30
+backupBeforeRegen: true
+customOreGeneration: true
+serverSecret: "change-this"
+vanillaOreMode: "reduce"
+
+messages:
+  unprotectedChunk: "このチャンクは保護されていません。次回の自然再生で再生成される可能性があります。"
+  scheduledRegen: "このチャンクは未保護のため、次回メンテナンス時に自然再生されます。"
+  protectPrompt: "建築物やアイテムを残したい場合は、ビーコンでチャンク保護してください。"
+
+regen:
+  nation-chunks: []
+  public-facility-chunks: []
+  staff-excluded-chunks: []
+
+hub:
+  world: world
+  x: 0.5
+  y: 64.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+servers:
+  athletic:
+    world: world
+    x: 100.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  minigame:
+    world: world
+    x: 150.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  modhub:
+    world: world
+    x: 200.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+
+warning-servers:
+  basic:
+    world: world
+    x: 0.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  caution:
+    world: world
+    x: 250.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  detention:
+    world: world
+    x: 300.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  imprisonment:
+    world: world
+    x: 350.5
+    y: 64.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+
+advancement-rewards:
+  default:
+    emeralds: 10
+    bonus-percent: 1
+  goal:
+    emeralds: 50
+    bonus-percent: 2
+  challenge:
+    emeralds: 100
+    bonus-percent: 5
+
+merchant-items:
+  - material: OAK_LOG
+    amount: 1
+    rarity: common
+  - material: COBBLESTONE
+    amount: 1
+    rarity: common
+  - material: BREAD
+    amount: 1
+    rarity: common
+  - material: TORCH
+    amount: 1
+    rarity: common
+  - material: COAL
+    amount: 1
+    rarity: common
+  - material: GLASS
+    amount: 1
+    rarity: common
+  - material: BRICKS
+    amount: 1
+    rarity: common
+  - material: IRON_INGOT
+    amount: 1
+    rarity: uncommon
+  - material: GOLD_INGOT
+    amount: 1
+    rarity: uncommon
+  - material: REDSTONE
+    amount: 1
+    rarity: uncommon
+  - material: LAPIS_LAZULI
+    amount: 1
+    rarity: uncommon
+  - material: QUARTZ
+    amount: 1
+    rarity: uncommon
+  - material: AMETHYST_SHARD
+    amount: 1
+    rarity: uncommon
+  - material: DIAMOND
+    amount: 1
+    rarity: rare
+  - material: EMERALD
+    amount: 1
+    rarity: rare
+  - material: GOLDEN_APPLE
+    amount: 1
+    rarity: rare
+  - material: ENCHANTED_GOLDEN_APPLE
+    amount: 1
+    rarity: epic
+  - material: NETHERITE_UPGRADE_SMITHING_TEMPLATE
+    amount: 1
+    rarity: epic
+
+advancement-unlocks:
+  adventure/trade:
+    emeralds: 10
+    bonus-percent: 1
+    shop-discount: 5
+  story/cure_zombie_villager:
+    emeralds: 50
+    bonus-percent: 2
+    shop-discount: 10
+  adventure/trade_at_world_height:
+    emeralds: 50
+    bonus-percent: 2
+    shop-discount: 15
+  adventure/hero_of_the_village:
+    emeralds: 100
+    bonus-percent: 5
+    shop-discount: 20
+  nether/summon_wither:
+    emeralds: 100
+    bonus-percent: 5
+    ffa-classes:
+      - heavy
+  nether/explore_nether:
+    emeralds: 50
+    bonus-percent: 2
+    unlocks:
+      - main_speed_1
+  adventure/adventuring_time:
+    emeralds: 50
+    bonus-percent: 5
+    unlocks:
+      - main_speed_2
+    skins:
+      - adventurer
+  end/elytra:
+    emeralds: 50
+    bonus-percent: 2
+    unlocks:
+      - elysion
+      - sky_island
+  end/find_end_city:
+    emeralds: 50
+    bonus-percent: 2
+    unlocks:
+      - elysion
+  end/levitate:
+    emeralds: 50
+    bonus-percent: 2
+    unlocks:
+      - babel_tower
+      - sky_tower
+  adventure/fall_from_world_height:
+    emeralds: 100
+    bonus-percent: 5
+    unlocks:
+      - ginnungagap
+  adventure/kill_mob_near_sculk_catalyst:
+    emeralds: 100
+    bonus-percent: 5
+    unlocks:
+      - agartha
+  adventure/kill_a_mob:
+    emeralds: 10
+    bonus-percent: 1
+    unlocks:
+      - ffa
+  adventure/shoot_arrow:
+    emeralds: 50
+    bonus-percent: 5
+    ffa-classes:
+      - archer
+  adventure/two_birds_one_arrow:
+    emeralds: 100
+    bonus-percent: 10
+    ffa-classes:
+      - soldier
+  adventure/throw_trident:
+    emeralds: 50
+    bonus-percent: 5
+    ffa-classes:
+      - spearman
+  husbandry/complete_catalogue:
+    emeralds: 100
+    bonus-percent: 10
+    pets:
+      - cat
+  husbandry/tame_an_animal:
+    emeralds: 50
+    bonus-percent: 5
+    pets:
+      - wolf
+  husbandry/froglights:
+    emeralds: 100
+    bonus-percent: 10
+    pets:
+      - frog
+  husbandry/allay_deliver_cake_to_note_block:
+    emeralds: 100
+    bonus-percent: 10
+    pets:
+      - allay
+  husbandry/ride_a_boat_with_a_goat:
+    emeralds: 50
+    bonus-percent: 5
+    pets:
+      - goat
+  husbandry/kill_axolotl_target:
+    emeralds: 50
+    bonus-percent: 5
+    pets:
+      - axolotl
+  husbandry/plant_any_sniffer_seed:
+    emeralds: 50
+    bonus-percent: 5
+    pets:
+      - sniffer
+  nether/all_effects:
+    emeralds: 100
+    bonus-percent: 10
+    skins:
+      - special
+  nether/all_potions:
+    emeralds: 100
+    bonus-percent: 10
+    skins:
+      - wizard
+      - cook
+  husbandry/balanced_diet:
+    emeralds: 100
+    bonus-percent: 10
+    skins:
+      - cook
+  adventure/kill_all_mobs:
+    emeralds: 100
+    bonus-percent: 10
+    skins:
+      - hunter
+    ffa-classes:
+      - hero
+  adventure/salvage_sherd:
+    emeralds: 50
+    bonus-percent: 5
+    skins:
+      - smith
+  nether/netherite_armor:
+    emeralds: 100
+    bonus-percent: 5
+    skins:
+      - knight
+
+minigame-unlocks:
+  tag:
+    required-emeralds: 10000
+  hide_and_seek:
+    required-emeralds: 10000
+  pvp:
+    required-emeralds: 10000
+  dropper:
+    required-emeralds: 10000
+  ffa:
+    required-emeralds: 10000

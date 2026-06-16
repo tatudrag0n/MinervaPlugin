@@ -1,0 +1,39 @@
+name: minerva
+version: 26.1.2
+
+main: org.server.minerva.Minerva
+api-version: '1.21'
+load: POSTWORLD
+commands:
+  minerva:
+    description: Minerva server management and player utilities.
+    usage: /minerva
+    aliases: [mv, mnv]
+  friend:
+    description: Minerva friend system.
+    usage: /friend
+    aliases: [friends]
+  status:
+    description: Reset Minerva status data.
+    usage: /status <player> reset
+permissions:
+  minerva.admin:
+    description: Allows Minerva administrative commands and protected-area bypass.
+    default: op
+  minerva.command.use:
+    description: Allows basic Minerva commands.
+    default: true
+  minerva.command.chunk:
+    description: Allows /minerva chunk.
+    default: true
+  minerva.command.protect:
+    description: Allows /minerva protect.
+    default: true
+  minerva.command.status:
+    description: Allows /minerva status.
+    default: true
+  minerva.admin.regen.force:
+    default: op
+  minerva.reward.grant:
+    description: Allows granting Minerva rewards from minigame and athletic completion commands.
+    default: op
