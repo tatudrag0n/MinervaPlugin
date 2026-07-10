@@ -36,14 +36,17 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.entity.WanderingTrader;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryCloseEvent;
@@ -53,6 +56,7 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
@@ -65,6 +69,8 @@ import org.bukkit.block.data.Directional;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.projectiles.ProjectileSource;
+import org.bukkit.util.Vector;
 
 import java.io.File;
 import java.io.IOException;
@@ -81,6 +87,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -100,12 +107,17 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private static final String MERCHANT_UI_TITLE = ChatColor.GOLD + "Minerva Merchant";
     private static final long MERCHANT_REROLL_MILLIS = 60L * 60L * 1000L;
     private static final long MERCHANT_TRANSACTION_COOLDOWN_MILLIS = 150L;
+    private static final long JUMP_PAD_COOLDOWN_MILLIS = 650L;
+    private static final long JUMP_PAD_FALL_PROTECTION_MILLIS = 60L * 1000L;
+    private static final int MAX_JUMP_PAD_POWER = 100;
     private static final int MAX_EMERALDS = 2_000_000_000;
     private static final int MAX_FRIEND_REQUESTS = 100;
     private static final int MAX_OFFLINE_MESSAGES = 50;
     private static final int MAX_FRIEND_MESSAGE_LENGTH = 256;
     private static final int MAX_FRIEND_FILTER_LENGTH = 32;
     private static final int MAX_SHOP_STACKS_PER_CLICK = 64;
+    private static final int BARREL_SHOP_OFFER_SLOTS = 27;
+    private static final int MOB_REWARD_FARM_THRESHOLD_PER_HOUR = 100;
     private static final Pattern SAFE_CONFIG_KEY_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,32}");
         private static final Map<String, TitleDefinition> TITLE_DEFINITIONS = Map.ofEntries(
             Map.entry("狙撃手", new TitleDefinition(Material.BOW, List.of("adventure/sniper_duel", "adventure/bullseye"))),
@@ -146,12 +158,59 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             Material.KNOWLEDGE_BOOK,
             Material.SPAWNER,
             Material.DRAGON_EGG);
+    private static final Map<String, Integer> MOB_KILL_REWARDS = Map.ofEntries(
+            Map.entry("BEE", 5),
+            Map.entry("BLAZE", 25),
+            Map.entry("BOGGED", 20),
+            Map.entry("BREEZE", 25),
+            Map.entry("CAVE_SPIDER", 15),
+            Map.entry("CREAKING", 30),
+            Map.entry("CREEPER", 12),
+            Map.entry("DOLPHIN", 5),
+            Map.entry("DROWNED", 10),
+            Map.entry("ELDER_GUARDIAN", 80),
+            Map.entry("ENDER_DRAGON", 900),
+            Map.entry("ENDERMAN", 25),
+            Map.entry("ENDERMITE", 4),
+            Map.entry("EVOKER", 40),
+            Map.entry("GHAST", 22),
+            Map.entry("GOAT", 5),
+            Map.entry("GUARDIAN", 18),
+            Map.entry("HOGLIN", 25),
+            Map.entry("HUSK", 10),
+            Map.entry("LLAMA", 5),
+            Map.entry("MAGMA_CUBE", 8),
+            Map.entry("NAUTILUS", 40),
+            Map.entry("PHANTOM", 15),
+            Map.entry("PIGLIN", 15),
+            Map.entry("PIGLIN_BRUTE", 45),
+            Map.entry("PILLAGER", 20),
+            Map.entry("POLAR_BEAR", 5),
+            Map.entry("RAVAGER", 50),
+            Map.entry("SHULKER", 35),
+            Map.entry("SILVERFISH", 4),
+            Map.entry("SKELETON", 10),
+            Map.entry("SLIME", 6),
+            Map.entry("SPIDER", 10),
+            Map.entry("STRAY", 15),
+            Map.entry("SULFUR_CUBE", 25),
+            Map.entry("TRADER_LLAMA", 5),
+            Map.entry("VEX", 30),
+            Map.entry("VINDICATOR", 45),
+            Map.entry("WARDEN", 250),
+            Map.entry("WITCH", 25),
+            Map.entry("WITHER", 650),
+            Map.entry("WITHER_SKELETON", 30),
+            Map.entry("ZOGLIN", 40),
+            Map.entry("ZOMBIE", 10),
+            Map.entry("ZOMBIE_VILLAGER", 10),
+            Map.entry("ZOMBIFIED_PIGLIN", 8));
 
     private NamespacedKey minervaItemKey;
     private NamespacedKey merchantKey;
     private NamespacedKey merchantSpawnKey;
     private NamespacedKey merchantTradedKey;
-    private NamespacedKey ticketValueKey;
+    private NamespacedKey merchantTypeKey;
     private NamespacedKey merchantOfferKey;
     private NamespacedKey merchantOfferPriceKey;
     private NamespacedKey merchantOfferMaterialKey;
@@ -166,11 +225,24 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private NamespacedKey uiTargetKey;
     private File dataFile;
     private FileConfiguration data;
+    private final EconomyPriceTable economyPriceTable = new EconomyPriceTable(this);
+    private final QuestService questService = new QuestService(this);
     private final ChunkProtectionFeature chunkProtectionFeature = new ChunkProtectionFeature(this);
+    private final ProtectionService protectionService = new ProtectionService(this, chunkProtectionFeature);
     private final ServerPortalFeature serverPortalFeature = new ServerPortalFeature(this);
     private final CompassFeature compassFeature = new CompassFeature(this);
-    private final WorldRulesFeature worldRulesFeature = new WorldRulesFeature();
+    private final WorldRulesFeature worldRulesFeature = new WorldRulesFeature(this);
     private final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature(this);
+    private final TextDisplayFeature textDisplayFeature = new TextDisplayFeature(this);
+    private final AuctionFeature auctionFeature = new AuctionFeature(this, economyPriceTable);
+    private final DiscordAuthManager discordAuthManager = new DiscordAuthManager(this);
+    private final DiscordAuthListener discordAuthListener = new DiscordAuthListener(discordAuthManager);
+    private final StructureManager structureManager = new StructureManager(this);
+    private final ProposalManager proposalManager = new ProposalManager(this);
+    private final QuestProgressListener questProgressListener = new QuestProgressListener(this, questService);
+    private final ProtectedInteractionListener protectedInteractionListener = new ProtectedInteractionListener(this, protectionService);
+    private final FfaManager ffaManager = new FfaManager(this);
+    private final FfaListener ffaListener = new FfaListener(this, ffaManager);
     private final Random random = new Random();
     private final Map<String, Integer> shopSalePrices = new HashMap<>();
     private final Map<String, Integer> shopBuyPrices = new HashMap<>();
@@ -186,7 +258,11 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private final Map<UUID, Long> lastMerchantTransaction = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> activeMerchantViews = new ConcurrentHashMap<>();
     private final Map<UUID, String> temporaryActionBarMessages = new ConcurrentHashMap<>();
+    private final Set<UUID> activeTutorials = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> temporaryActionBarUntil = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -194,7 +270,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         merchantKey = new NamespacedKey(this, "merchant");
         merchantSpawnKey = new NamespacedKey(this, "merchant_spawned_at");
         merchantTradedKey = new NamespacedKey(this, "merchant_traded");
-        ticketValueKey = new NamespacedKey(this, "ticket_value");
+        merchantTypeKey = new NamespacedKey(this, "merchant_type");
         merchantOfferKey = new NamespacedKey(this, "merchant_offer");
         merchantOfferPriceKey = new NamespacedKey(this, "merchant_offer_price");
         merchantOfferMaterialKey = new NamespacedKey(this, "merchant_offer_material");
@@ -209,23 +285,55 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         uiTargetKey = new NamespacedKey(this, "ui_target");
 
         saveDefaultConfig();
-        loadShopPrices();
+        runStartupStep("migrate barrel shop offer slots", this::migrateBarrelShopOfferSlots);
+        runStartupStep("migrate hub location", this::migrateDefaultHubLocation);
+        runStartupStep("migrate minigame location", this::migrateDefaultMinigameLocation);
+        runStartupStep("normalize spawn locations to origin", this::normalizeSpawnLocationsToOrigin);
+        runStartupStep("load economy price table", economyPriceTable::load);
+        runStartupStep("load quest definitions", questService::load);
+        runStartupStep("load shop prices", this::loadShopPrices);
+        runStartupStep("apply economy price table", this::applyEconomyPriceTable);
         loadData();
-        Bukkit.getPluginManager().registerEvents(this, this);
-        Bukkit.getPluginManager().registerEvents(chunkProtectionFeature, this);
-        Bukkit.getPluginManager().registerEvents(serverPortalFeature, this);
-        Bukkit.getPluginManager().registerEvents(compassFeature, this);
-        Bukkit.getPluginManager().registerEvents(utilityItemsFeature, this);
+        runStartupStep("load Discord auth", discordAuthManager::load);
+        runStartupStep("load structures", structureManager::load);
+        runStartupStep("load proposals", proposalManager::load);
+        runStartupStep("load text displays", textDisplayFeature::load);
+        runStartupStep("load FFA", ffaManager::load);
+        runStartupStep("register Minerva events", () -> Bukkit.getPluginManager().registerEvents(this, this));
+        runStartupStep("register chunk protection events", () -> Bukkit.getPluginManager().registerEvents(chunkProtectionFeature, this));
+        runStartupStep("register protected interaction events", () -> Bukkit.getPluginManager().registerEvents(protectedInteractionListener, this));
+        runStartupStep("register quest progress events", () -> Bukkit.getPluginManager().registerEvents(questProgressListener, this));
+        runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(auctionFeature, this));
+        runStartupStep("register Discord auth events", () -> Bukkit.getPluginManager().registerEvents(discordAuthListener, this));
+        runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(structureManager, this));
+        runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(ffaListener, this));
+        runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(textDisplayFeature, this));
+        runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(serverPortalFeature, this));
+        runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(compassFeature, this));
+        runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(utilityItemsFeature, this));
         registerCommand("minerva");
+        registerCommand("mva");
         registerCommand("friend");
         registerCommand("status");
+        registerCommand("tutorial");
 
-        worldRulesFeature.apply();
-        normalizeMerchants();
+        runStartupStep("apply world rules", worldRulesFeature::apply);
+        runStartupStep("apply world spawn locations", this::applyWorldSpawnLocations);
+        runStartupStep("normalize merchants", this::normalizeMerchants);
         Bukkit.getScheduler().runTaskTimer(this, this::grantPlaytimeRewards, 20L * 60L, 20L * 60L);
         Bukkit.getScheduler().runTaskTimer(this, this::tickMerchants, 20L * 60L, 20L * 60L);
         Bukkit.getScheduler().runTaskTimer(this, this::tickShelfShopActionBars, 10L, 10L);
+        Bukkit.getScheduler().runTaskTimer(this, discordAuthManager::tickExternalUpdates, 20L * 30L, 20L * 30L);
         getLogger().info("Minerva has been enabled.");
+    }
+
+    private void runStartupStep(String name, Runnable step) {
+        try {
+            step.run();
+        } catch (Throwable e) {
+            getLogger().severe("Startup step failed: " + name);
+            e.printStackTrace();
+        }
     }
 
     private void registerCommand(String name) {
@@ -240,6 +348,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @Override
     public void onDisable() {
+        try {
+            textDisplayFeature.disable();
+        } catch (Throwable e) {
+            getLogger().severe("Failed to disable text displays cleanly.");
+            e.printStackTrace();
+        }
         saveData();
         getLogger().info("Minerva has been disabled.");
     }
@@ -343,6 +457,32 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
     }
 
+    private void applyEconomyPriceTable() {
+        int applied = 0;
+        for (EconomyPriceTable.Entry entry : economyPriceTable.entries()) {
+            String key = entry.material().name();
+            if (entry.priceEm() > 0) {
+                shopSalePrices.put(key, entry.priceEm());
+            }
+            if (entry.sellEm() > 0) {
+                shopBuyPrices.put(key, entry.sellEm());
+            }
+            if (entry.merchantBuyPool() && entry.merchantBuyWeight() > 0) {
+                merchantBuyWeights.put(key, entry.merchantBuyWeight());
+            }
+            if (entry.merchantSellPool() && entry.merchantSellWeight() > 0) {
+                merchantSellWeights.put(key, entry.merchantSellWeight());
+            }
+            if (entry.barrelShopPool() && entry.barrelShopWeight() > 0) {
+                barrelShopConfigs.put(key, new BarrelShopConfig(entry.barrelTierKey(), entry.barrelShopWeight()));
+            }
+            applied++;
+        }
+        if (applied > 0) {
+            getLogger().info("Applied " + applied + " economy price table entries over shop-prices.yml.");
+        }
+    }
+
     void saveData() {
         if (data == null || dataFile == null) {
             return;
@@ -384,6 +524,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         routeByWarningLevel(player);
         refreshPlayerName(player);
         Bukkit.getScheduler().runTaskLater(this, () -> syncAdvancementState(player), 20L);
+        if (isFirstJoin(player)) {
+            Bukkit.getScheduler().runTaskLater(this, () -> startTutorial(player, false), 40L);
+        }
     }
 
     private void startPlayerSession(Player player) {
@@ -392,6 +535,54 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         section.set("session-playtime-rewards", 0);
         section.set("total-play-count", safeAdd(section.getInt("total-play-count", 0), 1));
         saveData();
+    }
+
+    private boolean isFirstJoin(Player player) {
+        ConfigurationSection section = getPlayerSection(player.getUniqueId());
+        return section.getInt("total-play-count", 0) == 1 && !section.getBoolean("tutorial.started", false);
+    }
+
+    private void startTutorial(Player player, boolean manual) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+        if (!activeTutorials.add(player.getUniqueId())) {
+            if (manual) {
+                player.sendMessage(ChatColor.YELLOW + "チュートリアルはすでに進行中です。");
+            }
+            return;
+        }
+        ConfigurationSection section = getPlayerSection(player.getUniqueId());
+        section.set("tutorial.started", true);
+        section.set("tutorial.last-started-at", System.currentTimeMillis());
+        saveData();
+
+        List<String> steps = List.of(
+                ChatColor.GOLD + "MinerVaへようこそ。まずは初期アイテムを確認しましょう。",
+                ChatColor.YELLOW + "エメラルドバンドル" + ChatColor.GRAY + ": EM残高の確認とショップ購入に使います。拾ったエメラルドは自動でEMに収納されます。",
+                ChatColor.AQUA + "中央広場コンパス" + ChatColor.GRAY + ": 中央広場の方向を指します。",
+                ChatColor.LIGHT_PURPLE + "テレポーター" + ChatColor.GRAY + ": 右クリックでサーバー移動UIを開けます。",
+                ChatColor.GOLD + "フレンドブック" + ChatColor.GRAY + ": 右クリック、または /friend でフレンドUIを開けます。",
+                ChatColor.GREEN + "保護したい拠点は /mva protect でチャンク保護ビーコンを受け取り、設置してください。",
+                ChatColor.GREEN + "チュートリアル完了です。もう一度見たい場合は /tutorial を実行してください。");
+        player.sendMessage(ChatColor.GOLD + "=== MinerVa Tutorial ===");
+        for (int i = 0; i < steps.size(); i++) {
+            int index = i;
+            Bukkit.getScheduler().runTaskLater(this, () -> {
+                if (!player.isOnline()) {
+                    activeTutorials.remove(player.getUniqueId());
+                    return;
+                }
+                player.sendMessage(steps.get(index));
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.0f + (index * 0.08f));
+                if (index == steps.size() - 1) {
+                    getPlayerSection(player.getUniqueId()).set("tutorial.completed", true);
+                    getPlayerSection(player.getUniqueId()).set("tutorial.completed-at", System.currentTimeMillis());
+                    saveData();
+                    activeTutorials.remove(player.getUniqueId());
+                }
+            }, 20L * i);
+        }
     }
 
     private void giveInitialItems(Player player) {
@@ -406,21 +597,36 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return utilityItemsFeature.createShopWand();
     }
 
-    private boolean isMinervaItem(ItemStack item, String id) {
+    private ItemStack createShopWand(ShopWandType type, ShopCategory category) {
+        return utilityItemsFeature.createShopWand(type, category);
+    }
+
+    private ItemStack createJumpPadWand(int verticalPower, int horizontalPower) {
+        return utilityItemsFeature.createJumpPadWand(verticalPower, horizontalPower);
+    }
+
+    ItemStack createChunkProtectionBeacon() {
+        return utilityItemsFeature.createChunkProtectionBeacon();
+    }
+
+    boolean isMinervaItem(ItemStack item, String id) {
         return utilityItemsFeature.isMinervaItem(item, id);
     }
 
-    private ItemStack createEmeraldTicket(int value, int amount) {
-        ItemStack item = new ItemStack(Material.PAPER, amount);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(ChatColor.GREEN + "EMチケット " + formatNumber(value)));
-        meta.lore(List.of(Component.text(ChatColor.GRAY + "Minerva商人の取引に使います。"),
-                Component.text(ChatColor.GRAY + "価値: " + formatNumber(value) + "EM")));
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        meta.getPersistentDataContainer().set(minervaItemKey, PersistentDataType.STRING, "em_ticket");
-        meta.getPersistentDataContainer().set(ticketValueKey, PersistentDataType.INTEGER, value);
-        item.setItemMeta(meta);
-        return item;
+    boolean isShopWand(ItemStack item) {
+        return utilityItemsFeature.isShopWand(item);
+    }
+
+    boolean isLegacyShopWand(ItemStack item) {
+        return utilityItemsFeature.isLegacyShopWand(item);
+    }
+
+    private ShopWandType shopWandType(ItemStack item) {
+        return utilityItemsFeature.getShopWandType(item);
+    }
+
+    private ShopCategory shopWandCategory(ItemStack item) {
+        return utilityItemsFeature.getShopWandCategory(item);
     }
 
     private boolean isReincarnationStar(ItemStack item) {
@@ -433,28 +639,25 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         item.setAmount(item.getAmount() - 1);
     }
 
-    private int getTicketValue(ItemStack item) {
-        if (!isMinervaItem(item, "em_ticket")) {
-            return 0;
-        }
-        Integer value = item.getItemMeta().getPersistentDataContainer().get(ticketValueKey, PersistentDataType.INTEGER);
-        return value == null ? 0 : value;
-    }
-
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
-        if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND) {
+        ItemStack item = event.getItem();
+        if (event.getHand() != null && event.getHand() != EquipmentSlot.HAND && !serverPortalFeature.isServerWand(item)) {
             return;
         }
         Player player = event.getPlayer();
-        ItemStack item = event.getItem();
 
         if (compassFeature.handleCompassClick(event)) {
             return;
         }
 
-        if (isMinervaItem(item, "shelf_shop_wand")) {
+        if (isShopWand(item)) {
             handleShopWandClick(event);
+            return;
+        }
+
+        if (isMinervaItem(item, "jump_pad_wand")) {
+            handleJumpPadWandClick(event);
             return;
         }
 
@@ -463,16 +666,18 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             return;
         }
 
-        if (event.getAction().isRightClick() && event.getClickedBlock() != null && serverPortalFeature.isServerPortal(event.getClickedBlock())) {
-            openTeleportUi(player);
-            event.setCancelled(true);
-            return;
-        }
-
         if (event.getAction().isRightClick() && event.getClickedBlock() != null
                 && isShelf(event.getClickedBlock().getType()) && !player.hasPermission("minerva.admin")) {
             if (isMinervaItem(item, "emerald_bundle")) {
                 tryShopPayment(player, event.getClickedBlock());
+            }
+            event.setCancelled(true);
+            return;
+        }
+
+        if (event.getAction().isRightClick() && event.getClickedBlock() != null && isBarrelShop(event.getClickedBlock())) {
+            if (event.getClickedBlock().getState() instanceof Barrel barrel) {
+                player.openInventory(barrel.getInventory());
             }
             event.setCancelled(true);
             return;
@@ -541,15 +746,64 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         if (killer == null || entity instanceof Player || isMinervaMerchant(entity)) {
             return;
         }
-        AttributeInstance maxHealth = entity.getAttribute(Attribute.MAX_HEALTH);
-        if (maxHealth == null || maxHealth.getValue() <= 0) {
+        if (!isDirectPlayerKill(entity, killer)) {
             return;
         }
-        int reward = applyIncomeBonus(killer.getUniqueId(), Math.max(1, (int) Math.floor(maxHealth.getValue() / 2.0)));
+        int baseReward = mobKillReward(entity.getType());
+        if (baseReward <= 0) {
+            return;
+        }
+        int reward = applyIncomeBonus(killer.getUniqueId(), adjustedMobKillReward(killer.getUniqueId(), entity.getType(), baseReward));
         addPlayerStat(killer.getUniqueId(), "total-mob-kills", 1);
         addKilledMob(killer.getUniqueId(), entity.getType());
         depositEmeralds(killer.getUniqueId(), reward);
         killer.sendMessage(ChatColor.GREEN + "討伐報酬: +" + formatNumber(reward) + "EM");
+    }
+
+    private int mobKillReward(EntityType type) {
+        return type == null ? 0 : MOB_KILL_REWARDS.getOrDefault(type.name(), 0);
+    }
+
+    private int adjustedMobKillReward(UUID uuid, EntityType type, int baseReward) {
+        if (baseReward <= 0 || type == null) {
+            return 0;
+        }
+        long now = System.currentTimeMillis();
+        Map<String, KillRewardWindow> playerWindows = mobRewardWindows.computeIfAbsent(uuid, ignored -> new ConcurrentHashMap<>());
+        KillRewardWindow window = playerWindows.computeIfAbsent(type.name(), ignored -> new KillRewardWindow(now));
+        if (now - window.startedAtMillis >= 60L * 60L * 1000L) {
+            window.startedAtMillis = now;
+            window.count = 0;
+        }
+        window.count++;
+        if (window.count > MOB_REWARD_FARM_THRESHOLD_PER_HOUR && isFarmAdjustedMob(type)) {
+            return Math.max(1, baseReward / 2);
+        }
+        return baseReward;
+    }
+
+    private boolean isFarmAdjustedMob(EntityType type) {
+        return switch (type) {
+            case BEE, CAVE_SPIDER, DOLPHIN, ENDERMITE, GOAT, GUARDIAN, LLAMA, MAGMA_CUBE,
+                 POLAR_BEAR, SILVERFISH, SLIME, TRADER_LLAMA, ZOMBIFIED_PIGLIN -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isDirectPlayerKill(LivingEntity entity, Player killer) {
+        EntityDamageEvent damage = entity.getLastDamageCause();
+        if (!(damage instanceof EntityDamageByEntityEvent entityDamage)) {
+            return false;
+        }
+        Entity damager = entityDamage.getDamager();
+        if (damager instanceof Player player) {
+            return player.getUniqueId().equals(killer.getUniqueId());
+        }
+        if (damager instanceof Projectile projectile) {
+            ProjectileSource source = projectile.getShooter();
+            return source instanceof Player player && player.getUniqueId().equals(killer.getUniqueId());
+        }
+        return false;
     }
 
     private void addKilledMob(UUID uuid, EntityType type) {
@@ -563,6 +817,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
+        if (ffaManager.isPlaying(player)) {
+            return;
+        }
         int current = getEmeralds(player.getUniqueId());
         int lost = current / 2;
         if (lost <= 0) {
@@ -604,24 +861,48 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private void handleShopWandClick(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        if (!player.hasPermission("minerva.admin")) {
+        Block block = event.getClickedBlock();
+        ItemStack wand = event.getItem();
+        ShopWandType type = shopWandType(wand);
+        ShopCategory category = shopWandCategory(wand);
+        if (type == ShopWandType.FRAME) {
+            player.sendMessage(ChatColor.RED + "額縁ショップは未実装です。額縁は既存のオークション機能を使用してください。");
+            event.setCancelled(true);
+            return;
+        }
+        if (block == null || !isValidShopWandTarget(block, type)) {
+            player.sendMessage(ChatColor.RED + shopWandTargetMessage(type));
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getAction().isRightClick() && !canCreateShop(player)) {
             player.sendMessage(ChatColor.RED + "権限がありません。");
             event.setCancelled(true);
             return;
         }
-        Block block = event.getClickedBlock();
-        if (block == null || (!isShelf(block.getType()) && block.getType() != Material.BARREL)) {
-            player.sendMessage(ChatColor.RED + "棚または樽をクリックしてください。");
+        if (event.getAction().isLeftClick() && !canManageShop(player, block)) {
+            player.sendMessage(ChatColor.RED + "このショップを解除できるのは作成者または管理者のみです。");
             event.setCancelled(true);
             return;
         }
         if (block.getType() == Material.BARREL) {
-            handleBarrelShopWandClick(player, block, event);
+            handleBarrelShopWandClick(player, block, event, type, category);
             return;
         }
         if (event.getAction().isRightClick()) {
+            if (type == ShopWandType.SHELF) {
+                Material material = randomShopCategoryMaterial(category);
+                if (material == null) {
+                    player.sendMessage(ChatColor.RED + "カテゴリ " + category.key() + " に販売可能な価格設定済みアイテムがありません。");
+                    event.setCancelled(true);
+                    return;
+                }
+                setShelfShopRandomOffer(block, category, material);
+            }
             setShelfShop(block, true);
-            player.sendMessage(ChatColor.GREEN + "棚をショップ化しました。");
+            setShopOwner(block, player.getUniqueId());
+            player.sendMessage(ChatColor.GREEN + "棚をショップ化しました。"
+                    + (type == ShopWandType.SHELF ? "カテゴリ: " + category.key() : ""));
             event.setCancelled(true);
             return;
         }
@@ -635,15 +916,46 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
     }
 
-    private void handleBarrelShopWandClick(Player player, Block block, PlayerInteractEvent event) {
+    private boolean isValidShopWandTarget(Block block, ShopWandType type) {
+        if (type == ShopWandType.SHELF) {
+            return isShelf(block.getType());
+        }
+        if (type == ShopWandType.BARREL) {
+            return block.getType() == Material.BARREL;
+        }
+        return isShelf(block.getType()) || block.getType() == Material.BARREL;
+    }
+
+    private String shopWandTargetMessage(ShopWandType type) {
+        if (type == ShopWandType.SHELF) {
+            return "棚をクリックしてください。";
+        }
+        if (type == ShopWandType.BARREL) {
+            return "樽をクリックしてください。";
+        }
+        return "棚または樽をクリックしてください。";
+    }
+
+    private void handleBarrelShopWandClick(Player player, Block block, PlayerInteractEvent event, ShopWandType type, ShopCategory category) {
         if (event.getAction().isRightClick()) {
             if (!(block.getState() instanceof Barrel barrel)) {
                 player.sendMessage(ChatColor.RED + "樽を読み込めませんでした。");
                 event.setCancelled(true);
                 return;
             }
-            populateBarrelShop(barrel);
+            if (type == ShopWandType.BARREL) {
+                if (!populateBarrelShop(barrel, category)) {
+                    player.sendMessage(ChatColor.RED + "カテゴリ " + category.key() + " に販売可能な価格設定済みアイテムがありません。");
+                    event.setCancelled(true);
+                    return;
+                }
+                setBarrelShopCategory(block, category);
+            } else {
+                populateBarrelShop(barrel);
+                clearBarrelShopCategory(block);
+            }
             setBarrelShop(block, true);
+            setShopOwner(block, player.getUniqueId());
             player.sendMessage(ChatColor.GREEN + "樽をショップ化し、商品を生成しました。");
             event.setCancelled(true);
             return;
@@ -653,6 +965,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 if (block.getState() instanceof Barrel barrel) {
                     barrel.getInventory().clear();
                 }
+                clearBarrelShopCategory(block);
                 player.sendMessage(ChatColor.GREEN + "樽のショップ化を解除しました。");
             } else {
                 player.sendMessage(ChatColor.YELLOW + "この樽はショップ化されていません。");
@@ -696,11 +1009,42 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         if (!isShelfShop(block)) {
             return null;
         }
+        Material configuredMaterial = shelfShopRandomOffer(block);
+        if (configuredMaterial != null) {
+            int price = randomShopPrice(configuredMaterial);
+            return price <= 0 ? null : new ShelfShopOffer(configuredMaterial, 1, price);
+        }
         Material shelfMaterial = shelfShopMaterial(block, selectedShelfSlot(player, block));
         if (shelfMaterial == null || shelfMaterial == Material.AIR || !isPricedShopItem(shelfMaterial)) {
             return null;
         }
         return new ShelfShopOffer(shelfMaterial, 1, Math.max(1, materialPrice(shelfMaterial)));
+    }
+
+    private Material shelfShopRandomOffer(Block block) {
+        String materialName = data.getString(shelfShopOfferPath(block) + ".material");
+        if (materialName == null || materialName.isBlank()) {
+            return null;
+        }
+        Material material = Material.matchMaterial(materialName);
+        return material == null || !isRandomShopItem(material) ? null : material;
+    }
+
+    private void setShelfShopRandomOffer(Block block, ShopCategory category, Material material) {
+        String path = shelfShopOfferPath(block);
+        data.set(path + ".type", ShopWandType.SHELF.key());
+        data.set(path + ".category", category.key());
+        data.set(path + ".material", material.name());
+        data.set(path + ".created-at", System.currentTimeMillis());
+        saveData();
+    }
+
+    private void clearShelfShopRandomOffer(Block block) {
+        data.set(shelfShopOfferPath(block), null);
+    }
+
+    private String shelfShopOfferPath(Block block) {
+        return "shelf-shop-offers." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
     }
 
     private int selectedShelfSlot(Player player, Block shelf) {
@@ -779,6 +1123,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         String path = shelfShopPath(block);
         boolean existed = data.getBoolean(path, false);
         data.set(path, enabled ? true : null);
+        if (!enabled) {
+            clearShopOwner(block);
+            clearShelfShopRandomOffer(block);
+        }
         saveData();
         return existed;
     }
@@ -787,14 +1135,59 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return "shelf-shops." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
     }
 
+    private boolean canCreateShop(Player player) {
+        return player.hasPermission("minerva.shop.admin") || player.hasPermission("minerva.admin");
+    }
+
+    private boolean canManageShop(Player player, Block block) {
+        if (canCreateShop(player)) {
+            return true;
+        }
+        String owner = data.getString(shopOwnerPath(block), "");
+        return owner.equals(player.getUniqueId().toString());
+    }
+
+    private void setShopOwner(Block block, UUID owner) {
+        data.set(shopOwnerPath(block), owner.toString());
+        saveData();
+    }
+
+    private void clearShopOwner(Block block) {
+        data.set(shopOwnerPath(block), null);
+    }
+
+    private String shopOwnerPath(Block block) {
+        return "shop-owners." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+    }
+
     boolean isBarrelShop(Block block) {
         return block != null && block.getType() == Material.BARREL && data.getBoolean(barrelShopPath(block), false);
+    }
+
+    boolean isShopBlock(Block block) {
+        return isShelfShop(block) || isBarrelShop(block);
+    }
+
+    boolean isAuctionFrame(Entity entity) {
+        return auctionFeature.isAuctionFrame(entity);
+    }
+
+    boolean isAuctionInteractionItem(ItemStack item) {
+        return auctionFeature.isAuctionInteractionItem(item);
+    }
+
+    void recordQuestProgress(Player player, String progressKey, int amount) {
+        questService.addProgress(player, progressKey, amount);
     }
 
     boolean setBarrelShop(Block block, boolean enabled) {
         String path = barrelShopPath(block);
         boolean existed = data.getBoolean(path, false);
         data.set(path, enabled ? true : null);
+        if (!enabled) {
+            clearShopOwner(block);
+            clearBarrelShopCategory(block);
+        }
         saveData();
         return existed;
     }
@@ -805,6 +1198,19 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private void populateBarrelShop(Barrel barrel) {
         List<MerchantOffer> pool = barrelShopOffers();
+        populateBarrelShop(barrel, pool);
+    }
+
+    private boolean populateBarrelShop(Barrel barrel, ShopCategory category) {
+        List<MerchantOffer> pool = categoryBarrelShopOffers(category);
+        if (pool.isEmpty()) {
+            return false;
+        }
+        populateBarrelShop(barrel, pool);
+        return true;
+    }
+
+    private void populateBarrelShop(Barrel barrel, List<MerchantOffer> pool) {
         Set<Material> used = new HashSet<>();
         Inventory inventory = barrel.getInventory();
         inventory.clear();
@@ -812,10 +1218,205 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             getLogger().warning("Barrel shop pool is empty. No offers were generated.");
             return;
         }
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
+        int offerSlots = Math.min(inventory.getSize(), Math.max(1,
+                getConfig().getInt("barrel-shop.offer-slots", BARREL_SHOP_OFFER_SLOTS)));
+        for (int slot = 0; slot < offerSlots; slot++) {
             MerchantOffer offer = randomBarrelOffer(pool, used);
             inventory.setItem(slot, createBarrelOfferItem(offer));
         }
+    }
+
+    private void setBarrelShopCategory(Block block, ShopCategory category) {
+        String path = barrelShopMetaPath(block);
+        data.set(path + ".type", ShopWandType.BARREL.key());
+        data.set(path + ".category", category.key());
+        data.set(path + ".created-at", System.currentTimeMillis());
+        saveData();
+    }
+
+    private void clearBarrelShopCategory(Block block) {
+        data.set(barrelShopMetaPath(block), null);
+    }
+
+    private String barrelShopMetaPath(Block block) {
+        return "barrel-shop-meta." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+    }
+
+    private void handleJumpPadWandClick(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        Block block = event.getClickedBlock();
+        if (!player.hasPermission("minerva.admin")) {
+            player.sendMessage(ChatColor.RED + "権限がありません。");
+            event.setCancelled(true);
+            return;
+        }
+        if (block == null) {
+            player.sendMessage(ChatColor.RED + "ブロックをクリックしてください。");
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getAction().isRightClick()) {
+            int verticalPower = utilityItemsFeature.getJumpPadVerticalPower(event.getItem());
+            int horizontalPower = utilityItemsFeature.getJumpPadHorizontalPower(event.getItem());
+            setJumpPad(block, verticalPower, horizontalPower);
+            player.sendMessage(ChatColor.GREEN + "ジャンプパッドを設定しました。縦: " + verticalPower + " / 横: " + horizontalPower);
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getAction().isLeftClick()) {
+            boolean existed = setJumpPad(block, false);
+            player.sendMessage((existed ? ChatColor.GREEN : ChatColor.YELLOW)
+                    + (existed ? "ジャンプパッドを解除しました。" : "このブロックはジャンプパッドではありません。"));
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Location to = event.getTo();
+        Location from = event.getFrom();
+        if (to == null || (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() && from.getBlockZ() == to.getBlockZ())) {
+            return;
+        }
+        Player player = event.getPlayer();
+        Block block = to.clone().subtract(0.0, 1.0, 0.0).getBlock();
+        JumpPadPower power = jumpPadPower(block);
+        if (power == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long last = lastJumpPadUse.getOrDefault(player.getUniqueId(), 0L);
+        if (now - last < JUMP_PAD_COOLDOWN_MILLIS) {
+            return;
+        }
+        lastJumpPadUse.put(player.getUniqueId(), now);
+        jumpPadFallProtectionUntil.put(player.getUniqueId(), now + JUMP_PAD_FALL_PROTECTION_MILLIS);
+        player.setFallDistance(0.0f);
+        double horizontalVelocity = jumpPadHorizontalVelocity(power.horizontal());
+        double verticalVelocity = jumpPadVerticalVelocity(power.vertical());
+        Vector direction = player.getLocation().getDirection().setY(0.0);
+        if (direction.lengthSquared() > 0.0) {
+            direction.normalize().multiply(horizontalVelocity);
+        }
+        player.setVelocity(direction.setY(verticalVelocity));
+        player.playSound(player.getLocation(), Sound.ENTITY_BREEZE_JUMP, 0.8f, Math.min(2.0f, 1.0f + power.vertical() * 0.01f));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onJumpPadFallDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player) || event.getCause() != EntityDamageEvent.DamageCause.FALL) {
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        Long until = jumpPadFallProtectionUntil.get(playerId);
+        if (until == null) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now > until) {
+            jumpPadFallProtectionUntil.remove(playerId);
+            return;
+        }
+        jumpPadFallProtectionUntil.remove(playerId);
+        player.setFallDistance(0.0f);
+        event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onJumpPadBlockBreak(BlockBreakEvent event) {
+        if (jumpPadPower(event.getBlock()) != null) {
+            setJumpPad(event.getBlock(), false);
+        }
+    }
+
+    private void setJumpPad(Block block, int verticalPower, int horizontalPower) {
+        String path = jumpPadPath(block);
+        data.set(path + ".verticalPower", clampJumpPadPower(verticalPower));
+        data.set(path + ".horizontalPower", clampJumpPadPower(horizontalPower));
+        data.set(path + ".material", block.getType().name());
+        saveData();
+    }
+
+    private boolean setJumpPad(Block block, boolean enabled) {
+        String path = jumpPadPath(block);
+        boolean existed = jumpPadPower(block) != null;
+        if (enabled) {
+            setJumpPad(block, 5, 5);
+            return existed;
+        }
+        data.set(path, null);
+        saveData();
+        return existed;
+    }
+
+    private JumpPadPower jumpPadPower(Block block) {
+        if (block == null) {
+            return null;
+        }
+        String path = jumpPadPath(block);
+        Object raw = data.get(path);
+        if (raw instanceof Boolean value) {
+            if (value) {
+                setJumpPad(block, 5, 5);
+                return new JumpPadPower(5, 5);
+            }
+            return null;
+        }
+        if (raw instanceof Number value) {
+            int power = oldJumpPadPowerToNewPower(value.intValue());
+            setJumpPad(block, power, power);
+            return new JumpPadPower(power, power);
+        }
+        ConfigurationSection section = data.getConfigurationSection(path);
+        if (section == null) {
+            return null;
+        }
+        String material = section.getString("material", "");
+        if (!block.getType().name().equals(material)) {
+            return null;
+        }
+        if (section.contains("power")) {
+            int power = oldJumpPadPowerToNewPower(section.getInt("power", 3));
+            setJumpPad(block, power, power);
+            return new JumpPadPower(power, power);
+        }
+        return new JumpPadPower(
+                clampJumpPadPower(section.getInt("verticalPower", 5)),
+                clampJumpPadPower(section.getInt("horizontalPower", 5)));
+    }
+
+    private String jumpPadPath(Block block) {
+        return "jump-pads." + block.getWorld().getUID() + "." + block.getX() + "_" + block.getY() + "_" + block.getZ();
+    }
+
+    private void migrateBarrelShopOfferSlots() {
+        String path = "barrel-shop.offer-slots";
+        if (getConfig().getInt(path, BARREL_SHOP_OFFER_SLOTS) == 18) {
+            getConfig().set(path, BARREL_SHOP_OFFER_SLOTS);
+            saveConfig();
+        }
+    }
+
+    private int clampJumpPadPower(int power) {
+        return Math.max(1, Math.min(MAX_JUMP_PAD_POWER, power));
+    }
+
+    private int oldJumpPadPowerToNewPower(int power) {
+        return clampJumpPadPower(Math.max(1, Math.min(5, power)) * 2);
+    }
+
+    private double jumpPadHorizontalVelocity(int power) {
+        int safePower = clampJumpPadPower(power);
+        int basePower = Math.min(10, safePower);
+        int extraPower = Math.max(0, safePower - 10);
+        return 0.45D + basePower * 0.18D + extraPower * 0.04D;
+    }
+
+    private double jumpPadVerticalVelocity(int power) {
+        int safePower = clampJumpPadPower(power);
+        int basePower = Math.min(10, safePower);
+        int extraPower = Math.max(0, safePower - 10);
+        return 0.75D + basePower * 0.15D + extraPower * 0.05D;
     }
 
     private MerchantOffer randomBarrelOffer(List<MerchantOffer> pool, Set<Material> used) {
@@ -940,7 +1541,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             for (Entity entity : world.getEntities()) {
                 if (entity instanceof AbstractVillager villager && isMinervaMerchant(entity)) {
                     villager.setAI(true);
-                    villager.setInvulnerable(true);
+                    villager.setInvulnerable(false);
                 }
             }
         }
@@ -956,52 +1557,158 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return (int) Math.max(1, Math.min(MAX_EMERALDS, discounted));
     }
 
-    private void spawnMerchant(Location location) {
+    private boolean spawnMerchant(Location location) {
+        if (isCentralPlazaLocation(location)) {
+            return false;
+        }
         WanderingTrader trader = (WanderingTrader) location.getWorld().spawnEntity(location, EntityType.WANDERING_TRADER);
-        trader.customName(Component.text(ChatColor.GOLD + "Minerva商人"));
+        String merchantType = randomMerchantType();
+        trader.customName(Component.text(merchantTypeColor(merchantType) + merchantTypeName(merchantType) + "商人"));
         trader.setCustomNameVisible(true);
         trader.setDespawnDelay(Integer.MAX_VALUE);
         trader.setCanDrinkMilk(false);
         trader.setCanDrinkPotion(false);
         trader.setAI(true);
-        trader.setInvulnerable(true);
+        trader.setInvulnerable(false);
         PersistentDataContainer container = trader.getPersistentDataContainer();
         container.set(merchantKey, PersistentDataType.BOOLEAN, true);
         container.set(merchantSpawnKey, PersistentDataType.LONG, System.currentTimeMillis());
         container.set(merchantTradedKey, PersistentDataType.BOOLEAN, false);
+        container.set(merchantTypeKey, PersistentDataType.STRING, merchantType);
         rerollMerchant(trader);
+        return true;
     }
 
     private void rerollMerchant(AbstractVillager villager) {
-        List<MerchantRecipe> recipes = new ArrayList<>();
-        List<MerchantOffer> sellOffers = randomMerchantOffers(8, merchantSellWeights, true);
-        List<MerchantOffer> buyOffers = randomMerchantOffers(8, merchantBuyWeights, false);
-        for (MerchantOffer offer : sellOffers) {
-            MerchantRecipe recipe = new MerchantRecipe(new ItemStack(offer.material(), 1), 999999);
-            recipe.setExperienceReward(false);
-            recipe.setIgnoreDiscounts(true);
-            recipe.addIngredient(createEmeraldTicket(offer.price(), 1));
-            recipes.add(recipe);
+        String merchantType = villager.getPersistentDataContainer().get(merchantTypeKey, PersistentDataType.STRING);
+        if (merchantType == null || merchantType.isBlank()) {
+            merchantType = randomMerchantType();
+            villager.getPersistentDataContainer().set(merchantTypeKey, PersistentDataType.STRING, merchantType);
         }
-        villager.setRecipes(recipes);
+        villager.customName(Component.text(merchantTypeColor(merchantType) + merchantTypeName(merchantType) + "商人"));
+        villager.setRecipes(Collections.emptyList());
+        List<MerchantOffer> sellOffers = randomMerchantOffers(8, merchantSellWeights, true, merchantType);
+        List<MerchantOffer> buyOffers = randomMerchantOffers(8, merchantBuyWeights, false, merchantType);
         saveMerchantOffers(villager.getUniqueId(), sellOffers, buyOffers);
     }
 
-    private List<MerchantOffer> randomMerchantOffers(int count, Map<String, Integer> weights, boolean selling) {
-        List<MerchantOffer> pool = merchantOffers(weights, selling);
+    private String randomMerchantType() {
+        int roll = random.nextInt(100);
+        if (roll < 33) {
+            return "red";
+        }
+        if (roll < 83) {
+            return "blue";
+        }
+        if (roll < 98) {
+            return "yellow";
+        }
+        return "purple";
+    }
+
+    private String merchantTypeName(String type) {
+        return switch (type) {
+            case "red" -> "赤";
+            case "yellow" -> "黄";
+            case "purple" -> "紫";
+            default -> "青";
+        };
+    }
+
+    private String merchantTypeColor(String type) {
+        return switch (type) {
+            case "red" -> ChatColor.RED;
+            case "yellow" -> ChatColor.YELLOW;
+            case "purple" -> ChatColor.LIGHT_PURPLE;
+            default -> ChatColor.AQUA;
+        };
+    }
+
+    private List<MerchantOffer> randomMerchantOffers(int count, Map<String, Integer> weights, boolean selling, String merchantType) {
+        List<MerchantOffer> pool = merchantOffers(weights, selling).stream()
+                .filter(offer -> merchantTypeAllows(merchantType, offer.material(), selling))
+                .toList();
         if (pool.isEmpty()) {
-            pool = selling ? allMerchantOffers() : allMerchantOffers().stream()
+            pool = (selling ? allMerchantOffers() : allMerchantOffers().stream()
                     .filter(offer -> materialBuyPrice(offer.material()) > 0)
+                    .toList()).stream()
+                    .filter(offer -> merchantTypeAllows(merchantType, offer.material(), selling))
                     .toList();
+        }
+        if (pool.isEmpty()) {
+            pool = merchantOffers(weights, selling);
         }
         List<MerchantOffer> offers = new ArrayList<>();
         Set<Material> used = new HashSet<>();
+        if ("purple".equals(merchantType)) {
+            List<MerchantOffer> epicPool = pool.stream()
+                    .filter(offer -> isMerchantRarityAtLeast(offer.rarity(), "epic"))
+                    .toList();
+            if (!epicPool.isEmpty()) {
+                MerchantOffer epic = randomWeightedMerchantOffer(used, epicPool, weights);
+                offers.add(new MerchantOffer(epic.material(), epic.amount(), epic.rarity(), randomMerchantPrice(epic.material(), selling)));
+            }
+            pool = pool.stream()
+                    .filter(offer -> isMerchantRarityAtLeast(offer.rarity(), "rare"))
+                    .toList();
+            if (pool.isEmpty()) {
+                pool = merchantOffers(weights, selling).stream()
+                        .filter(offer -> isMerchantRarityAtLeast(offer.rarity(), "rare"))
+                        .toList();
+            }
+        }
         for (int i = 0; i < count; i++) {
             MerchantOffer offer = randomWeightedMerchantOffer(used, pool, weights);
             int price = randomMerchantPrice(offer.material(), selling);
             offers.add(new MerchantOffer(offer.material(), offer.amount(), offer.rarity(), price));
         }
-        return offers;
+        return offers.stream().limit(count).toList();
+    }
+
+    private boolean merchantTypeAllows(String merchantType, Material material, boolean selling) {
+        if ("purple".equals(merchantType)) {
+            return true;
+        }
+        String name = material.name();
+        if ("red".equals(merchantType)) {
+            if (selling) {
+                return material.getMaxDurability() > 0
+                        || name.endsWith("_SWORD")
+                        || name.endsWith("_AXE")
+                        || name.endsWith("_PICKAXE")
+                        || name.endsWith("_SHOVEL")
+                        || name.endsWith("_HOE")
+                        || name.endsWith("_HELMET")
+                        || name.endsWith("_CHESTPLATE")
+                        || name.endsWith("_LEGGINGS")
+                        || name.endsWith("_BOOTS")
+                        || name.contains("BOW")
+                        || name.contains("ARROW")
+                        || name.equals("SHIELD")
+                        || name.equals("TRIDENT")
+                        || name.equals("MACE");
+            }
+            return name.contains("STONE")
+                    || name.contains("ORE")
+                    || name.contains("INGOT")
+                    || name.contains("COAL")
+                    || name.contains("COPPER")
+                    || name.contains("IRON")
+                    || name.contains("GOLD")
+                    || name.contains("REDSTONE")
+                    || name.contains("LAPIS")
+                    || name.contains("QUARTZ");
+        }
+        if ("yellow".equals(merchantType)) {
+            return materialPrice(material) >= 100
+                    && !name.endsWith("_SPAWN_EGG")
+                    && !name.equals("SPAWNER")
+                    && !name.equals("TRIAL_SPAWNER");
+        }
+        return !name.endsWith("_SPAWN_EGG")
+                && !name.equals("SPAWNER")
+                && !name.equals("TRIAL_SPAWNER")
+                && materialPrice(material) < 1000;
     }
 
     private MerchantOffer randomWeightedMerchantOffer(Set<Material> used, List<MerchantOffer> sourcePool, Map<String, Integer> weights) {
@@ -1044,8 +1751,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private int randomMerchantPrice(Material material, boolean selling) {
         int basePrice = selling ? materialPrice(material) : materialBuyPrice(material);
-        int multiplier = selling ? 120 + random.nextInt(31) : 90 + random.nextInt(21);
-        return (int) Math.max(1, Math.min(MAX_EMERALDS, (long) Math.max(1, basePrice) * multiplier / 100L));
+        int multiplierPercent = 95 + random.nextInt(11);
+        long price = (long) Math.max(1, basePrice) * multiplierPercent / 100L;
+        return (int) Math.max(1, Math.min(MAX_EMERALDS, price));
     }
 
     private List<MerchantOffer> barrelShopOffers() {
@@ -1058,6 +1766,61 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             offers.add(new MerchantOffer(material, 1, config.tier(), materialPrice(material)));
         }
         return offers;
+    }
+
+    private List<MerchantOffer> categoryBarrelShopOffers(ShopCategory category) {
+        List<MerchantOffer> offers = new ArrayList<>();
+        for (Material material : shopCategoryMaterials(category)) {
+            int price = randomShopPrice(material);
+            if (price > 0) {
+                offers.add(new MerchantOffer(material, 1, merchantRarity(material), price));
+            }
+        }
+        return offers;
+    }
+
+    private Material randomShopCategoryMaterial(ShopCategory category) {
+        List<Material> materials = shopCategoryMaterials(category);
+        if (materials.isEmpty()) {
+            return null;
+        }
+        return materials.get(random.nextInt(materials.size()));
+    }
+
+    private List<Material> shopCategoryMaterials(ShopCategory category) {
+        List<Material> materials = new ArrayList<>();
+        for (String raw : getConfig().getStringList("shopwand.categories." + category.key())) {
+            Material material = Material.matchMaterial(raw);
+            if (isRandomShopItem(material)) {
+                materials.add(material);
+            }
+        }
+        return materials;
+    }
+
+    private boolean isRandomShopItem(Material material) {
+        return material != null
+                && material.isItem()
+                && randomShopPrice(material) > 0
+                && !MERCHANT_EXCLUDED_ITEMS.contains(material)
+                && !material.name().startsWith("LEGACY_")
+                && !material.name().endsWith("_SPAWN_EGG");
+    }
+
+    private int randomShopPrice(Material material) {
+        if (material == null) {
+            return 0;
+        }
+        int configuredPrice = shopSalePrices.getOrDefault(material.name(), 0);
+        if (configuredPrice > 0) {
+            return configuredPrice;
+        }
+        int economyPrice = economyPriceTable.price(material);
+        if (economyPrice > 0) {
+            return economyPrice;
+        }
+        Integer exact = exactMaterialPrice(material);
+        return exact == null ? 0 : Math.max(1, exact);
     }
 
     private int barrelShopWeight(Material material) {
@@ -1088,9 +1851,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private void saveMerchantOffers(UUID merchantId, List<MerchantOffer> sellOffers, List<MerchantOffer> buyOffers) {
         data.set("merchants." + merchantId + ".sell", serializeMerchantOffers(sellOffers));
-        data.set("merchants." + merchantId + ".buy", serializeMerchantOffers(buyOffers.stream()
-                .map(offer -> new MerchantOffer(offer.material(), offer.amount(), offer.rarity(), materialBuyPrice(offer.material())))
-                .toList()));
+        data.set("merchants." + merchantId + ".buy", serializeMerchantOffers(buyOffers));
         saveData();
     }
 
@@ -1190,6 +1951,19 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             return "uncommon";
         }
         return "common";
+    }
+
+    private boolean isMerchantRarityAtLeast(String rarity, String minimum) {
+        return merchantRarityRank(rarity) >= merchantRarityRank(minimum);
+    }
+
+    private int merchantRarityRank(String rarity) {
+        return switch ((rarity == null ? "" : rarity).toLowerCase(Locale.ROOT)) {
+            case "epic" -> 3;
+            case "rare" -> 2;
+            case "uncommon" -> 1;
+            default -> 0;
+        };
     }
 
     private int materialPrice(Material material) {
@@ -1503,7 +2277,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 if (!(entity instanceof AbstractVillager villager) || !isMinervaMerchant(entity)) {
                     continue;
                 }
-                villager.setInvulnerable(true);
+                villager.setInvulnerable(false);
                 villager.setAI(activeMerchantViews.containsValue(villager.getUniqueId()) ? false : true);
                 PersistentDataContainer container = entity.getPersistentDataContainer();
                 long spawnedAt = container.getOrDefault(merchantSpawnKey, PersistentDataType.LONG, now);
@@ -1519,7 +2293,30 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 container.set(merchantSpawnKey, PersistentDataType.LONG, now);
                 container.set(merchantTradedKey, PersistentDataType.BOOLEAN, false);
             }
+            trySpawnRandomMerchant(world);
         }
+    }
+
+    private void trySpawnRandomMerchant(World world) {
+        if (world.getEnvironment() != World.Environment.NORMAL
+                || world.getName().equalsIgnoreCase("elysion")
+                || world.getName().equalsIgnoreCase("ginnungagap")
+                || random.nextDouble() >= 0.005D
+                || world.getPlayers().isEmpty()) {
+            return;
+        }
+        Player anchor = world.getPlayers().get(random.nextInt(world.getPlayers().size()));
+        Location base = anchor.getLocation().clone().add(random.nextInt(33) - 16, 0, random.nextInt(33) - 16);
+        int y = world.getHighestBlockYAt(base);
+        Location spawn = new Location(world, base.getBlockX() + 0.5, y + 1.0, base.getBlockZ() + 0.5);
+        if (isCentralPlazaLocation(spawn)) {
+            return;
+        }
+        spawnMerchant(spawn);
+    }
+
+    private boolean isCentralPlazaLocation(Location location) {
+        return location != null && protectionService.isSpawnProtected(location);
     }
 
     private boolean isMinervaMerchant(Entity entity) {
@@ -1528,11 +2325,29 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @EventHandler
     public void onMerchantDamage(EntityDamageEvent event) {
-        if (isMinervaMerchant(event.getEntity())) {
-            event.setCancelled(true);
-            event.getEntity().setInvulnerable(true);
-            event.setDamage(0);
+        if (!isMinervaMerchant(event.getEntity())) {
+            return;
         }
+        event.getEntity().setInvulnerable(false);
+        if (isPlayerCausedDamage(event)) {
+            return;
+        }
+        event.setCancelled(true);
+        event.setDamage(0);
+    }
+
+    private boolean isPlayerCausedDamage(EntityDamageEvent event) {
+        if (!(event instanceof EntityDamageByEntityEvent entityDamage)) {
+            return false;
+        }
+        Entity damager = entityDamage.getDamager();
+        if (damager instanceof Player) {
+            return true;
+        }
+        if (damager instanceof Projectile projectile) {
+            return projectile.getShooter() instanceof Player;
+        }
+        return false;
     }
 
     @EventHandler
@@ -1550,7 +2365,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         event.setCancelled(true);
         villager.setAI(false);
-        villager.setInvulnerable(true);
+        villager.setInvulnerable(false);
         openMerchantUi(event.getPlayer(), villager);
     }
 
@@ -1724,6 +2539,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         player.setLevel(0);
         player.setExp(0);
         saveData();
+        recordQuestProgress(player, "reincarnations", next);
         playReincarnationSound(player);
         player.sendMessage(ChatColor.LIGHT_PURPLE + "転生しました: " + next + "回目 / 転生ボーナス+" + bonus + "%");
     }
@@ -2004,14 +2820,16 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private void fillFriendTopTabs(Inventory inventory) {
-        inventory.setItem(1, actionItem(Material.WRITABLE_BOOK, ChatColor.LIGHT_PURPLE + "進捗",
-                List.of(ChatColor.GRAY + "進捗一覧と進捗ボーナス"), "status_tab_progress", null));
+        inventory.setItem(1, actionItem(Material.BOOK, ChatColor.LIGHT_PURPLE + "進捗",
+                List.of(ChatColor.GRAY + "進捗一覧"), "status_tab_progress", null));
         inventory.setItem(2, actionItem(Material.NETHER_STAR, ChatColor.LIGHT_PURPLE + "転生",
                 List.of(ChatColor.GRAY + "転生回数、条件、転生ボーナス"), "status_tab_reincarnation", null));
         inventory.setItem(3, actionItem(Material.NAME_TAG, ChatColor.GOLD + "称号",
                 List.of(ChatColor.GRAY + "称号一覧と選択"), "status_tab_titles", null));
         inventory.setItem(4, actionItem(Material.ZOMBIE_SPAWN_EGG, ChatColor.RED + "討伐",
                 List.of(ChatColor.GRAY + "Mob討伐状況"), "status_tab_kills", null));
+        inventory.setItem(5, actionItem(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "クエスト",
+                List.of(ChatColor.GRAY + "デイリー、ウィークリー、マンスリー、スペシャル"), "status_tab_quests", null));
     }
 
     private void fillFriendRows(Player player, Inventory inventory, String filter) {
@@ -2144,6 +2962,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private void openStatusUi(Player player, String tab) {
         syncAdvancementState(player);
         Inventory inventory = Bukkit.createInventory(player, 54, Component.text(FRIEND_STATUS_UI_TITLE));
+        fillStatusTabs(inventory, tab.startsWith("quests") ? "quests" : tab);
         if (tab.startsWith("progress")) {
             fillProgressTab(player, inventory, tabPage(tab, "progress"));
         } else if (tab.startsWith("kills")) {
@@ -2152,6 +2971,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             fillTitlesTab(player, inventory, tabPage(tab, "titles"));
         } else if ("reincarnation".equals(tab)) {
             fillReincarnationTab(player, inventory);
+        } else if ("quests".equals(tab)) {
+            fillQuestCategoryTab(inventory);
+        } else if (tab.startsWith("quests:")) {
+            fillQuestListTab(player, inventory, questTypeFromTab(tab));
         } else {
             fillProgressTab(player, inventory, 0);
         }
@@ -2161,22 +2984,102 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private void fillStatusTabs(Inventory inventory, String activeTab) {
-        inventory.setItem(0, actionItem(Material.WRITABLE_BOOK, tabName("progress", activeTab, "進捗"),
-                List.of(ChatColor.GRAY + "達成状況"), "status_tab_progress", null));
-        inventory.setItem(1, actionItem(Material.NETHER_STAR, tabName("reincarnation", activeTab, "転生"),
-                List.of(ChatColor.GRAY + "転生条件と実行"), "status_tab_reincarnation", null));
-        inventory.setItem(2, actionItem(Material.NAME_TAG, tabName("titles", activeTab, "称号"),
-                List.of(ChatColor.GRAY + "取得済み称号の選択"), "status_tab_titles", null));
-        inventory.setItem(3, actionItem(Material.ZOMBIE_SPAWN_EGG, tabName("kills", activeTab, "討伐"),
-                List.of(ChatColor.GRAY + "討伐済みMob"), "status_tab_kills", null));
+        String normalizedTab = activeStatusTab(activeTab);
+        inventory.setItem(0, switch (normalizedTab) {
+            case "reincarnation" -> named(Material.NETHER_STAR, ChatColor.GOLD + "転生", List.of());
+            case "titles" -> named(Material.NAME_TAG, ChatColor.GOLD + "称号", List.of());
+            case "kills" -> named(Material.ZOMBIE_SPAWN_EGG, ChatColor.GOLD + "討伐", List.of());
+            case "quests" -> named(Material.EXPERIENCE_BOTTLE, ChatColor.GOLD + "クエスト", List.of());
+            default -> named(Material.BOOK, ChatColor.GOLD + "進捗", List.of());
+        });
     }
 
-    private String tabName(String tab, String activeTab, String label) {
-        boolean active = tab.equals(activeTab)
-                || ("progress".equals(tab) && activeTab.startsWith("progress"))
-                || ("titles".equals(tab) && activeTab.startsWith("titles"))
-                || ("kills".equals(tab) && activeTab.startsWith("kills"));
-        return (active ? ChatColor.GOLD + "▶ " : ChatColor.GRAY.toString()) + label;
+    private String activeStatusTab(String activeTab) {
+        if (activeTab == null) {
+            return "progress";
+        }
+        if (activeTab.startsWith("progress")) {
+            return "progress";
+        }
+        if (activeTab.startsWith("titles")) {
+            return "titles";
+        }
+        if (activeTab.startsWith("kills")) {
+            return "kills";
+        }
+        if (activeTab.startsWith("quests")) {
+            return "quests";
+        }
+        if ("reincarnation".equals(activeTab)) {
+            return "reincarnation";
+        }
+        return "progress";
+    }
+
+    private void fillQuestCategoryTab(Inventory inventory) {
+        inventory.setItem(20, actionItem(Material.CLOCK, ChatColor.AQUA + "デイリー",
+                List.of(ChatColor.GRAY + "毎日5件抽選 + 完全達成"), "quest_category", QuestType.DAILY.key()));
+        inventory.setItem(21, actionItem(Material.WRITABLE_BOOK, ChatColor.AQUA + "ウィークリー",
+                List.of(ChatColor.GRAY + "毎週5件抽選 + 完全達成"), "quest_category", QuestType.WEEKLY.key()));
+        inventory.setItem(23, actionItem(Material.MAP, ChatColor.AQUA + "マンスリー",
+                List.of(ChatColor.GRAY + "10件固定表示"), "quest_category", QuestType.MONTHLY.key()));
+        inventory.setItem(24, actionItem(Material.NETHER_STAR, ChatColor.LIGHT_PURPLE + "スペシャル",
+                List.of(ChatColor.GRAY + "条件達成で解放"), "quest_category", QuestType.SPECIAL.key()));
+    }
+
+    private void fillQuestListTab(Player player, Inventory inventory, QuestType type) {
+        questService.ensurePeriods(player);
+        inventory.setItem(45, named(Material.PAPER, ChatColor.YELLOW + type.label() + "クエスト",
+                List.of(ChatColor.GRAY + "残り時間: " + questService.remainingTime(type))));
+        inventory.setItem(48, actionItem(Material.ARROW, ChatColor.WHITE + "カテゴリに戻る",
+                List.of(ChatColor.GRAY + "クエストカテゴリ"), "status_tab_quests", null));
+        int slot = 18;
+        for (QuestDefinition definition : questService.visibleQuests(player, type)) {
+            if (slot >= 45) {
+                break;
+            }
+            inventory.setItem(slot++, questItem(player, definition));
+        }
+    }
+
+    private ItemStack questItem(Player player, QuestDefinition definition) {
+        boolean unlocked = questService.isUnlocked(player, definition);
+        if (!unlocked) {
+            return actionItem(Material.GRAY_STAINED_GLASS_PANE, ChatColor.DARK_GRAY + "？？？",
+                    List.of(ChatColor.GRAY + "未解放スペシャル"), "locked_quest", definition.id());
+        }
+        int progress = questService.progress(player, definition);
+        boolean completed = questService.isCompleted(player, definition);
+        boolean claimed = questService.isClaimed(player, definition);
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "条件: " + definition.condition());
+        lore.add(ChatColor.GRAY + "現在進捗: " + Math.min(progress, definition.required()));
+        lore.add(ChatColor.GRAY + "必要数: " + definition.required());
+        lore.add(ChatColor.GRAY + "基礎報酬EM: " + formatNumber(definition.baseReward()));
+        lore.add(ChatColor.GRAY + "転生補正後EM: " + formatNumber(questService.effectiveReward(player, definition)));
+        lore.add(ChatColor.GRAY + "残り時間: " + questService.remainingTime(definition.type()));
+        lore.add((completed ? ChatColor.GREEN : ChatColor.YELLOW) + "達成状態: " + (completed ? "達成済み" : "未達成"));
+        lore.add((claimed ? ChatColor.GREEN : ChatColor.GOLD) + "受取状態: " + (claimed ? "受取済み" : "未受取"));
+        if (completed && !claimed) {
+            lore.add(ChatColor.YELLOW + "クリックで受取");
+        }
+        String color = claimed ? ChatColor.DARK_GRAY : completed ? ChatColor.GOLD : ChatColor.WHITE;
+        ItemStack item = actionItem(claimed ? Material.LIME_STAINED_GLASS_PANE : definition.icon(),
+                color + definition.id() + " " + definition.name(), lore, "quest_claim", definition.id());
+        ItemMeta meta = item.getItemMeta();
+        meta.setEnchantmentGlintOverride(completed && !claimed);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private QuestType questTypeFromTab(String tab) {
+        String key = tab.substring("quests:".length()).toLowerCase(Locale.ROOT);
+        for (QuestType type : QuestType.values()) {
+            if (type.key().equals(key)) {
+                return type;
+            }
+        }
+        return QuestType.DAILY;
     }
 
     private void fillStatusTab(Player player, Inventory inventory) {
@@ -2211,8 +3114,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         int safePage = Math.max(0, Math.min(page, maxPage));
         inventory.setItem(45, named(Material.WRITABLE_BOOK, ChatColor.LIGHT_PURPLE + "達成進捗数",
                 List.of(ChatColor.GRAY.toString() + countCompletedAdvancements(player) + "/" + advancements.size())));
-        inventory.setItem(46, named(Material.GOLD_INGOT, ChatColor.AQUA + "進捗ボーナス",
-                List.of(ChatColor.GRAY + "+" + getAdvancementBonus(player.getUniqueId()) + "%")));
         inventory.setItem(49, named(Material.PAPER, ChatColor.YELLOW + "ページ",
                 List.of(ChatColor.GRAY.toString() + (safePage + 1) + "/" + (maxPage + 1))));
         if (safePage > 0) {
@@ -2260,7 +3161,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private void fillTitlesTab(Player player, Inventory inventory, int page) {
         Set<String> completed = new HashSet<>(getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
         String selected = selectedTitle(player);
-        List<Map.Entry<String, TitleDefinition>> titles = TITLE_DEFINITIONS.entrySet().stream()
+        List<Map.Entry<String, TitleDefinition>> titles = titleDefinitions().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .toList();
         int pageSize = 27;
@@ -2319,7 +3220,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         ConfigurationSection section = getPlayerSection(player.getUniqueId());
         Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));
         List<String> newlyUnlocked = new ArrayList<>();
-        for (Map.Entry<String, TitleDefinition> entry : TITLE_DEFINITIONS.entrySet()) {
+        for (Map.Entry<String, TitleDefinition> entry : titleDefinitions().entrySet()) {
             String title = entry.getKey();
             if (!notified.contains(title) && hasTitle(completed, entry.getValue())) {
                 notified.add(title);
@@ -2696,7 +3597,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return score;
     }
 
-    private String formatNumber(int value) {
+    String formatNumber(int value) {
         return String.format(Locale.US, "%,d", value);
     }
 
@@ -2746,6 +3647,29 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 }
                 inventory.setItem(slot++, actionItem(Material.ENDER_PEARL, ChatColor.LIGHT_PURPLE + key,
                         List.of(ChatColor.GRAY + "クリックで移動"), "teleport", "servers." + key));
+            }
+        }
+        player.openInventory(inventory);
+    }
+
+    void openServerPortalTargetUi(Player player, String portalKey) {
+        Inventory inventory = Bukkit.createInventory(player, 9, Component.text(TELEPORT_UI_TITLE));
+        inventory.setItem(0, named(Material.ENDER_EYE, ChatColor.LIGHT_PURPLE + "ポータル移動先設定",
+                List.of(ChatColor.GRAY + "このポータルに触れた時の移動先を選択")));
+        ConfigurationSection servers = getConfig().getConfigurationSection("servers");
+        if (servers != null) {
+            int slot = 1;
+            for (String key : servers.getKeys(false)) {
+                if (!isSafeConfigKey(key)) {
+                    getLogger().warning("Ignoring unsafe server key in config.yml: " + key);
+                    continue;
+                }
+                if (slot >= 9) {
+                    break;
+                }
+                inventory.setItem(slot++, actionItem(Material.ENDER_PEARL, ChatColor.LIGHT_PURPLE + key,
+                        List.of(ChatColor.GRAY + "クリックでこのポータルの移動先に設定"),
+                        "server_portal_bind", portalKey + "|servers." + key));
             }
         }
         player.openInventory(inventory);
@@ -2836,6 +3760,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 playUiClickSound(player);
                 teleportToConfigLocation(player, target);
                 player.closeInventory();
+            } else if ("server_portal_bind".equals(action) && target != null) {
+                String[] parts = target.split("\\|", 2);
+                if (parts.length == 2) {
+                    serverPortalFeature.setServerPortalTarget(parts[0], parts[1]);
+                    playUiClickSound(player);
+                    player.sendMessage(ChatColor.GREEN + "サーバーポータルの移動先を設定しました。");
+                    player.closeInventory();
+                }
             }
             return;
         }
@@ -2891,7 +3823,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         Entity entity = findEntity(merchantId);
         if (entity instanceof AbstractVillager villager && isMinervaMerchant(entity)) {
             villager.setAI(true);
-            villager.setInvulnerable(true);
+            villager.setInvulnerable(false);
         }
     }
 
@@ -2968,6 +3900,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             case "status_tab_reincarnation" -> openStatusUi(player, "reincarnation");
             case "status_tab_titles" -> openStatusUi(player, "titles:0");
             case "status_tab_kills" -> openStatusUi(player, "kills:0");
+            case "status_tab_quests" -> openStatusUi(player, "quests");
             case "friend_status_detail" -> openDetailedStatusUi(player);
             default -> {
             }
@@ -2986,6 +3919,15 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             case "status_tab_reincarnation" -> openStatusUi(player, "reincarnation");
             case "status_tab_titles" -> openStatusUi(player, "titles:0");
             case "status_tab_kills" -> openStatusUi(player, "kills:0");
+            case "status_tab_quests" -> openStatusUi(player, "quests");
+            case "quest_category" -> openStatusUi(player, "quests:" + getUiTargetString(clicked));
+            case "quest_claim" -> {
+                String questId = getUiTargetString(clicked);
+                if (questId != null && questService.claim(player, questId)) {
+                    QuestDefinition definition = questService.definition(questId);
+                    openStatusUi(player, definition == null ? "quests" : "quests:" + definition.type().key());
+                }
+            }
             case "progress_page" -> openStatusUi(player, "progress:" + parsePositiveInt(getUiTargetString(clicked), 0));
             case "titles_page" -> openStatusUi(player, "titles:" + parsePositiveInt(getUiTargetString(clicked), 0));
             case "kills_page" -> openStatusUi(player, "kills:" + parsePositiveInt(getUiTargetString(clicked), 0));
@@ -3015,7 +3957,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
     }
 
-    private void teleportToConfigLocation(Player player, String path) {
+    void teleportToConfigLocation(Player player, String path) {
         Location location = readLocation(path);
         if (location == null) {
             player.sendMessage(ChatColor.RED + "移動先が未設定です: " + path);
@@ -3038,6 +3980,133 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 getConfig().getDouble(path + ".z"),
                 (float) getConfig().getDouble(path + ".yaw"),
                 (float) getConfig().getDouble(path + ".pitch"));
+    }
+
+    private void applyWorldSpawnLocations() {
+        for (World world : Bukkit.getWorlds()) {
+            world.setSpawnLocation(new Location(world, 0.5D, 0.0D, 0.5D, 0.0F, 0.0F));
+        }
+    }
+
+    private void normalizeSpawnLocationsToOrigin() {
+        setLocationCoordinatesToOrigin("hub");
+        normalizeLocationSection("world-rules.spawn");
+        normalizeLocationSection("servers");
+        normalizeLocationSection("warning-servers");
+        saveConfig();
+    }
+
+    private void normalizeLocationSection(String sectionPath) {
+        ConfigurationSection section = getConfig().getConfigurationSection(sectionPath);
+        if (section == null) {
+            return;
+        }
+        for (String key : section.getKeys(false)) {
+            setLocationCoordinatesToOrigin(sectionPath + "." + key);
+        }
+    }
+
+    private void setLocationCoordinatesToOrigin(String path) {
+        if (!getConfig().contains(path + ".world")) {
+            return;
+        }
+        getConfig().set(path + ".x", 0.0D);
+        getConfig().set(path + ".y", 0.0D);
+        getConfig().set(path + ".z", 0.0D);
+        getConfig().set(path + ".yaw", 0.0D);
+        getConfig().set(path + ".pitch", 0.0D);
+    }
+
+    private void applyFixedSpawnLocation(String worldName, double x, double y, double z) {
+        World world = worldName == null ? null : Bukkit.getWorld(worldName);
+        if (world != null) {
+            world.setSpawnLocation(new Location(world, x, y, z, 0.0F, 0.0F));
+        }
+    }
+
+    private void applyConfiguredSpawnLocation(String primaryPath, String fallbackPath, String defaultWorld, double defaultX, double defaultY, double defaultZ) {
+        String path = getConfig().contains(primaryPath + ".world") ? primaryPath : fallbackPath;
+        String worldName = getConfig().getString(path + ".world", defaultWorld);
+        World world = worldName == null ? null : Bukkit.getWorld(worldName);
+        if (world == null) {
+            return;
+        }
+        Location spawn = new Location(world,
+                getConfig().getDouble(path + ".x", defaultX),
+                getConfig().getDouble(path + ".y", defaultY),
+                getConfig().getDouble(path + ".z", defaultZ),
+                (float) getConfig().getDouble(path + ".yaw", 0.0D),
+                (float) getConfig().getDouble(path + ".pitch", 0.0D));
+        world.setSpawnLocation(spawn);
+    }
+
+    private void migrateDefaultHubLocation() {
+        if (!"world".equalsIgnoreCase(getConfig().getString("hub.world", "world"))) {
+            return;
+        }
+        boolean oldDefault = Math.abs(getConfig().getDouble("hub.x") - 0.5D) < 0.0001D
+                && Math.abs(getConfig().getDouble("hub.y") - 64.0D) < 0.0001D
+                && Math.abs(getConfig().getDouble("hub.z") - 0.5D) < 0.0001D;
+        boolean lowOriginSpawn = Math.abs(getConfig().getDouble("hub.x")) < 0.0001D
+                && Math.abs(getConfig().getDouble("hub.z")) < 0.0001D
+                && (Math.abs(getConfig().getDouble("hub.y") - 60.0D) < 0.0001D
+                || Math.abs(getConfig().getDouble("hub.y") - 64.0D) < 0.0001D);
+        boolean highOriginSpawn = Math.abs(getConfig().getDouble("hub.x")) < 0.0001D
+                && Math.abs(getConfig().getDouble("hub.y") - 300.0D) < 0.0001D
+                && Math.abs(getConfig().getDouble("hub.z")) < 0.0001D;
+        boolean missing = !getConfig().contains("hub.x")
+                || !getConfig().contains("hub.y")
+                || !getConfig().contains("hub.z");
+        if (!oldDefault && !lowOriginSpawn && !highOriginSpawn && !missing) {
+            return;
+        }
+        getConfig().set("hub.world", "world");
+        getConfig().set("hub.x", 0.0D);
+        getConfig().set("hub.y", 0.0D);
+        getConfig().set("hub.z", 0.0D);
+        getConfig().set("hub.yaw", 0.0D);
+        getConfig().set("hub.pitch", 0.0D);
+        setIfMissing("world-rules.spawn.main.world", "world");
+        setIfMissing("world-rules.spawn.main.x", 0.0D);
+        setIfMissing("world-rules.spawn.main.y", 0.0D);
+        setIfMissing("world-rules.spawn.main.z", 0.0D);
+        setIfMissing("world-rules.spawn.main.yaw", 0.0D);
+        setIfMissing("world-rules.spawn.main.pitch", 0.0D);
+        saveConfig();
+    }
+
+    private void migrateDefaultMinigameLocation() {
+        if (!"minigame".equalsIgnoreCase(getConfig().getString("servers.minigame.world", "minigame"))) {
+            return;
+        }
+        boolean oldDefault = Math.abs(getConfig().getDouble("servers.minigame.x") - 0.5D) < 0.0001D
+                && Math.abs(getConfig().getDouble("servers.minigame.y") - 64.0D) < 0.0001D
+                && Math.abs(getConfig().getDouble("servers.minigame.z") - 0.5D) < 0.0001D;
+        boolean missing = !getConfig().contains("servers.minigame.x")
+                || !getConfig().contains("servers.minigame.y")
+                || !getConfig().contains("servers.minigame.z");
+        if (!oldDefault && !missing) {
+            return;
+        }
+        getConfig().set("servers.minigame.world", "minigame");
+        getConfig().set("servers.minigame.x", 0.0D);
+        getConfig().set("servers.minigame.y", 0.0D);
+        getConfig().set("servers.minigame.z", 0.0D);
+        getConfig().set("servers.minigame.yaw", 0.0D);
+        getConfig().set("servers.minigame.pitch", 0.0D);
+        setIfMissing("world-rules.spawn.minigame.world", "minigame");
+        setIfMissing("world-rules.spawn.minigame.x", 0.0D);
+        setIfMissing("world-rules.spawn.minigame.y", 0.0D);
+        setIfMissing("world-rules.spawn.minigame.z", 0.0D);
+        setIfMissing("world-rules.spawn.minigame.yaw", 0.0D);
+        setIfMissing("world-rules.spawn.minigame.pitch", 0.0D);
+        saveConfig();
+    }
+
+    private void setIfMissing(String path, Object value) {
+        if (!getConfig().contains(path)) {
+            getConfig().set(path, value);
+        }
     }
 
     private void writeLocation(String path, Location location) {
@@ -3127,7 +4196,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         int paidReward = applyIncomeBonus(player.getUniqueId(), reward);
         depositEmeralds(player.getUniqueId(), paidReward);
         updateAdvancementBonus(player.getUniqueId(), completed);
-        player.sendMessage(ChatColor.GREEN + "進捗報酬: +" + formatNumber(paidReward) + "EM / 進捗ボーナス+" + bonus + "%");
+        player.sendMessage(ChatColor.GREEN + "進捗報酬: +" + formatNumber(paidReward) + "EM");
         checkAllAdvancementsCompleted(player);
         refreshPlayerName(player);
     }
@@ -3147,11 +4216,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private int advancementBonus(Frame frame) {
-        return switch (frame) {
-            case CHALLENGE -> 4;
-            case GOAL -> 2;
-            default -> 1;
-        };
+        return 0;
     }
 
     private void syncAdvancementState(Player player) {
@@ -3213,7 +4278,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         updateAdvancementBonus(player.getUniqueId(), new HashSet<>(section.getStringList("completed-advancements")));
         section.set("all-advancements-rewarded", true);
         saveData();
-        player.sendMessage(ChatColor.GOLD + "全進捗達成報酬: +" + formatNumber(paidReward) + "EM / 進捗ボーナス+100% / 転生タブから転生できます。");
+        player.sendMessage(ChatColor.GOLD + "全進捗達成報酬: +" + formatNumber(paidReward) + "EM / 転生タブから転生できます。");
     }
 
     private void applyUnlocks(Player player, ConfigurationSection section) {
@@ -3303,12 +4368,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
     }
 
-    private int getEmeralds(UUID uuid) {
+    int getEmeralds(UUID uuid) {
         int emeralds = getPlayerSection(uuid).getInt("emeralds", 0);
         return Math.max(0, Math.min(MAX_EMERALDS, emeralds));
     }
 
-    private void depositEmeralds(UUID uuid, int amount) {
+    void depositEmeralds(UUID uuid, int amount) {
         if (amount <= 0) {
             return;
         }
@@ -3319,7 +4384,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         saveData();
     }
 
-    private boolean withdrawEmeralds(UUID uuid, int amount) {
+    boolean withdrawEmeralds(UUID uuid, int amount) {
         if (amount <= 0) {
             return false;
         }
@@ -3390,12 +4455,12 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return 0;
     }
 
-    private int getReincarnationBonus(UUID uuid) {
+    int getReincarnationBonus(UUID uuid) {
         return getPlayerSection(uuid).getInt("reincarnation-bonus-percent", 0);
     }
 
     private int getTotalIncomeBonus(UUID uuid) {
-        return getAdvancementBonus(uuid) + getReincarnationBonus(uuid);
+        return getReincarnationBonus(uuid);
     }
 
     private int updateAdvancementBonus(UUID uuid, Set<String> completed) {
@@ -3408,18 +4473,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private int calculateAdvancementBonus(Set<String> completed) {
-        int bonus = 0;
-        for (Advancement advancement : trackableAdvancements()) {
-            if (!completed.contains(advancement.getKey().toString())) {
-                continue;
-            }
-            AdvancementDisplay display = advancement.getDisplay();
-            bonus += advancementBonus(display == null ? Frame.TASK : display.frame());
-        }
-        if (completed.size() >= countTrackableAdvancements() && countTrackableAdvancements() > 0) {
-            bonus += 100;
-        }
-        return bonus;
+        return 0;
     }
 
     private void addAdvancementBonus(UUID uuid, int percent) {
@@ -3439,6 +4493,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         ConfigurationSection section = getPlayerSection(uuid);
         section.set(key, safeAdd(section.getInt(key, 0), amount));
         saveData();
+        questService.recordStat(uuid, key, amount);
     }
 
     private void refreshPlayerName(Player player) {
@@ -3471,12 +4526,30 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private boolean canUseTitle(Player player, String title) {
-        TitleDefinition definition = TITLE_DEFINITIONS.get(title);
+        TitleDefinition definition = titleDefinitions().get(title);
         if (definition == null) {
             return false;
         }
         Set<String> completed = new HashSet<>(getPlayerSection(player.getUniqueId()).getStringList("completed-advancements"));
         return hasTitle(completed, definition);
+    }
+
+    private Map<String, TitleDefinition> titleDefinitions() {
+        Map<String, TitleDefinition> definitions = new LinkedHashMap<>(TITLE_DEFINITIONS);
+        ConfigurationSection section = getConfig().getConfigurationSection("titles");
+        if (section == null) {
+            return definitions;
+        }
+        for (String key : section.getKeys(false)) {
+            String displayName = section.getString(key + ".display-name", key);
+            if (displayName == null || displayName.isBlank()) {
+                continue;
+            }
+            Material icon = Material.matchMaterial(section.getString(key + ".icon", "name_tag"));
+            List<String> requirements = section.getStringList(key + ".required-advancements");
+            definitions.put(displayName, new TitleDefinition(icon == null ? Material.NAME_TAG : icon, requirements));
+        }
+        return definitions;
     }
 
     private void resetStatusData(UUID uuid) {
@@ -3536,6 +4609,14 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return result;
     }
 
+    boolean areFriends(UUID first, UUID second) {
+        if (first == null || second == null || first.equals(second)) {
+            return false;
+        }
+        return getUuidSet(first, "friends").contains(second)
+                || getUuidSet(second, "friends").contains(first);
+    }
+
     private void setUuidSet(UUID owner, String key, Set<UUID> values) {
         getPlayerSection(owner).set(key, values.stream().map(UUID::toString).toList());
         saveData();
@@ -3543,35 +4624,60 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if ("friend".equalsIgnoreCase(command.getName())) {
-            return handleFriendCommand(sender, args);
+        try {
+            if ("friend".equalsIgnoreCase(command.getName())) {
+                return handleFriendCommand(sender, args);
+            }
+            if ("status".equalsIgnoreCase(command.getName())) {
+                return handleStatusCommand(sender, args);
+            }
+            if ("tutorial".equalsIgnoreCase(command.getName())) {
+                return handleTutorialCommand(sender);
+            }
+            return handleMinervaCommand(sender, args);
+        } catch (Throwable e) {
+            getLogger().severe("Command failed: /" + label + " " + String.join(" ", args));
+            e.printStackTrace();
+            sender.sendMessage(ChatColor.RED + "コマンド実行中にエラーが発生しました。詳細はサーバーコンソールを確認してください。");
+            return true;
         }
-        if ("status".equalsIgnoreCase(command.getName())) {
-            return handleStatusCommand(sender, args);
-        }
-        return handleMinervaCommand(sender, args);
     }
 
     private boolean handleMinervaCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.YELLOW + "/minerva kit|balance|pay|ticket|merchant|minigame|athletic|em|regen|chunk|protect|status|shopwand|serverwand|sethub|setserver|delserver|warning");
+            sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|auth|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|em|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
             return true;
         }
-        if (!(sender instanceof Player player) && !List.of("warning", "em", "emerald", "regen").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (!(sender instanceof Player player) && !List.of("warning", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "auth", "structure", "proposal").contains(args[0].toLowerCase(Locale.ROOT))) {
             sender.sendMessage("Player only.");
             return true;
         }
         switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "check" -> {
+                if (hasPermission(sender, "minerva.command.chunk")) {
+                    handleChunkCommand((Player) sender);
+                }
+            }
+            case "list" -> handleListCommand(sender);
+            case "tp" -> handleWorldTpCommand((Player) sender, args);
+            case "text" -> textDisplayFeature.handleCommand(sender, args);
+            case "ffa" -> ffaManager.handleCommand(sender, args);
+            case "auth" -> discordAuthManager.handleCommand(sender, args);
+            case "structure" -> structureManager.handleCommand(sender, args);
+            case "proposal" -> proposalManager.handleCommand(sender, args);
+            case "gamerules" -> handleGamerulesCommand(sender, args);
+            case "info" -> handleInfoCommand(sender);
+            case "reload" -> handleReloadCommand(sender);
             case "kit" -> {
                 giveInitialItems((Player) sender);
                 sender.sendMessage(ChatColor.GREEN + "初期配布物を確認しました。");
             }
             case "balance" -> sender.sendMessage(ChatColor.GREEN + "所持EM: " + formatNumber(getEmeralds(((Player) sender).getUniqueId())));
             case "pay" -> handlePayCommand((Player) sender, args);
-            case "ticket" -> handleTicketCommand((Player) sender, args);
             case "merchant", "marchant" -> handleMerchantCommand((Player) sender, args);
             case "minigame" -> handleMinigameCommand((Player) sender, args);
             case "athletic" -> handleAthleticCommand((Player) sender, args);
+            case "quest" -> handleQuestCommand(sender, args);
             case "em", "emerald" -> handleEmeraldCommand(sender, args);
             case "regen" -> handleRegenCommand(sender, args);
             case "chunk" -> {
@@ -3589,17 +4695,61 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                     handleMinervaStatusCommand((Player) sender, args);
                 }
             }
+            case "tutorial" -> handleTutorialCommand(sender);
             case "shopwand" -> {
-                if (!sender.hasPermission("minerva.admin")) {
+                if (!sender.hasPermission("minerva.shop.admin") && !sender.hasPermission("minerva.admin")) {
                     sender.sendMessage(ChatColor.RED + "権限がありません。");
                     return true;
                 }
-                Map<Integer, ItemStack> leftovers = ((Player) sender).getInventory().addItem(createShopWand());
+                ItemStack wand;
+                if (args.length == 1) {
+                    wand = createShopWand();
+                } else {
+                    if (args.length < 3) {
+                        sender.sendMessage(ChatColor.RED + "/mva shopwand <shelf|barrel|frame> <category>");
+                        return true;
+                    }
+                    ShopWandType type = ShopWandType.fromKey(args[1]);
+                    ShopCategory category = ShopCategory.fromKey(args[2]);
+                    if (type == null) {
+                        sender.sendMessage(ChatColor.RED + "type は shelf / barrel / frame のいずれかです。");
+                        return true;
+                    }
+                    if (category == null) {
+                        sender.sendMessage(ChatColor.RED + "存在しないカテゴリです: " + args[2]);
+                        sender.sendMessage(ChatColor.YELLOW + "使用可能: " + String.join(", ", ShopCategory.keys()));
+                        return true;
+                    }
+                    if (type == ShopWandType.FRAME) {
+                        sender.sendMessage(ChatColor.RED + "frame ショップは未実装です。額縁は既存のオークション専用です。");
+                        return true;
+                    }
+                    wand = createShopWand(type, category);
+                }
+                Map<Integer, ItemStack> leftovers = ((Player) sender).getInventory().addItem(wand);
                 if (!leftovers.isEmpty()) {
                     sender.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
                     return true;
                 }
                 sender.sendMessage(ChatColor.GREEN + "ショップワンドを入手しました。");
+            }
+            case "jumppadwand" -> {
+                if (!sender.hasPermission("minerva.admin")) {
+                    sender.sendMessage(ChatColor.RED + "権限がありません。");
+                    return true;
+                }
+                int verticalPower = args.length >= 2 ? parsePositiveInt(args[1], -1) : 5;
+                int horizontalPower = args.length >= 3 ? parsePositiveInt(args[2], -1) : verticalPower;
+                if (verticalPower < 1 || verticalPower > MAX_JUMP_PAD_POWER || horizontalPower < 1 || horizontalPower > MAX_JUMP_PAD_POWER) {
+                    sender.sendMessage(ChatColor.RED + "/mva jumppadwand <縦1-100> [横1-100]");
+                    return true;
+                }
+                Map<Integer, ItemStack> leftovers = ((Player) sender).getInventory().addItem(createJumpPadWand(verticalPower, horizontalPower));
+                if (!leftovers.isEmpty()) {
+                    sender.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
+                    return true;
+                }
+                sender.sendMessage(ChatColor.GREEN + "ジャンプパッドワンドを入手しました。縦: " + verticalPower + " / 横: " + horizontalPower);
             }
             case "serverwand" -> {
                 if (!sender.hasPermission("minerva.admin")) {
@@ -3660,8 +4810,17 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 sender.sendMessage(ChatColor.GREEN + "サーバー移動先を削除しました: " + args[1]);
             }
             case "warning" -> handleWarningCommand(sender, args);
-            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva kit|balance|pay|ticket|merchant|minigame|athletic|em|regen|chunk|protect|status|shopwand|serverwand|sethub|setserver|delserver|warning");
+            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|auth|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|em|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
         }
+        return true;
+    }
+
+    private boolean handleTutorialCommand(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("Player only.");
+            return true;
+        }
+        startTutorial(player, true);
         return true;
     }
 
@@ -3675,6 +4834,73 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         sender.sendMessage(ChatColor.RED + "権限がありません。");
         return false;
+    }
+
+    private void handleListCommand(CommandSender sender) {
+        List<String> worlds = Bukkit.getWorlds().stream().map(World::getName).sorted().toList();
+        ConfigurationSection servers = getConfig().getConfigurationSection("servers");
+        List<String> serverKeys = servers == null ? Collections.emptyList() : servers.getKeys(false).stream().sorted().toList();
+        sender.sendMessage(ChatColor.GREEN + "Worlds: " + String.join(", ", worlds));
+        sender.sendMessage(ChatColor.GREEN + "Configured servers: " + (serverKeys.isEmpty() ? "(none)" : String.join(", ", serverKeys)));
+    }
+
+    private void handleWorldTpCommand(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "/minerva tp <worldKey>");
+            return;
+        }
+        String key = args[1];
+        if (getConfig().contains("servers." + key)) {
+            teleportToConfigLocation(player, "servers." + key);
+            return;
+        }
+        World world = Bukkit.getWorld(key);
+        if (world == null) {
+            player.sendMessage(ChatColor.RED + "移動先が見つかりません: " + key);
+            return;
+        }
+        player.teleport(world.getSpawnLocation());
+        playTeleportSound(player);
+        player.sendMessage(ChatColor.GREEN + world.getName() + " のスポーンへ移動しました。");
+    }
+
+    private void handleGamerulesCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("minerva.admin")) {
+            sender.sendMessage(ChatColor.RED + "権限がありません。");
+            return;
+        }
+        worldRulesFeature.apply();
+        if (args.length >= 2) {
+            World world = Bukkit.getWorld(args[1]);
+            sender.sendMessage(world == null
+                    ? ChatColor.RED + "ワールドが見つかりません: " + args[1]
+                    : ChatColor.GREEN + "ゲームルールを適用しました: " + world.getName());
+            return;
+        }
+        sender.sendMessage(ChatColor.GREEN + "全ワールドへMinerVaゲームルールを適用しました。");
+    }
+
+    private void handleInfoCommand(CommandSender sender) {
+        sender.sendMessage(ChatColor.GREEN + "MinerVa " + getDescription().getVersion());
+        sender.sendMessage(ChatColor.GRAY + "Commands: /minerva, /mva");
+        sender.sendMessage(ChatColor.GRAY + "/mv はMultiverse-Core専用です。MinerVaは登録しません。");
+    }
+
+    private void handleReloadCommand(CommandSender sender) {
+        if (!sender.hasPermission("minerva.admin")) {
+            sender.sendMessage(ChatColor.RED + "権限がありません。");
+            return;
+        }
+        reloadConfig();
+        economyPriceTable.load();
+        questService.load();
+        loadShopPrices();
+        applyEconomyPriceTable();
+        discordAuthManager.reload();
+        structureManager.load();
+        proposalManager.load();
+        ffaManager.load();
+        sender.sendMessage(ChatColor.GREEN + "MinerVa設定、価格表、クエスト定義を再読込しました。");
     }
 
     private void handleChunkCommand(Player player) {
@@ -3699,9 +4925,31 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         player.sendMessage(ChatColor.GREEN + "MinerVaステータス");
         player.sendMessage(ChatColor.GRAY + "MVL: " + getMvl(player.getUniqueId()) + " / ランク: " + getMvlRank(player.getUniqueId()));
         player.sendMessage(ChatColor.GRAY + "所持EM: " + formatNumber(getEmeralds(player.getUniqueId())) + "EM");
-        player.sendMessage(ChatColor.GRAY + "進捗ボーナス: +" + getAdvancementBonus(player.getUniqueId()) + "% / 転生ボーナス: +" + getReincarnationBonus(player.getUniqueId()) + "%");
+        player.sendMessage(ChatColor.GRAY + "転生ボーナス: +" + getReincarnationBonus(player.getUniqueId()) + "%");
         player.sendMessage(ChatColor.GRAY + "総プレイ時間: " + formatPlayTime(section.getInt("total-minutes", 0)));
         player.sendMessage(ChatColor.YELLOW + "リセット: /minerva status reset");
+    }
+
+    private void handleQuestCommand(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("minerva.admin")) {
+            sender.sendMessage(ChatColor.RED + "権限がありません。");
+            return;
+        }
+        if (args.length < 5 || !"progress".equalsIgnoreCase(args[1])) {
+            sender.sendMessage(ChatColor.RED + "/minerva quest progress <player> <questId> <amount>");
+            return;
+        }
+        OfflinePlayer target = resolveKnownPlayer(sender, args[2]);
+        if (target == null || !target.isOnline() || target.getPlayer() == null) {
+            sender.sendMessage(ChatColor.RED + "オンラインのプレイヤーを指定してください。");
+            return;
+        }
+        int amount = parsePositiveInt(args[4], -1);
+        if (amount < 0) {
+            sender.sendMessage(ChatColor.RED + "amount は0以上の数字にしてください。");
+            return;
+        }
+        questService.setQuestProgress(target.getPlayer(), args[3].toUpperCase(Locale.ROOT), amount);
     }
 
     private void handleAthleticCommand(Player player, String[] args) {
@@ -3773,6 +5021,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 String path = "minigames." + key + ".donated";
                 int donated = safeAdd(data.getInt(path, 0), amount);
                 data.set(path, donated);
+                recordQuestProgress(player, "community_donations", amount);
+                recordQuestProgress(player, "server_unlock_contribution", amount);
                 int required = getConfig().getInt("minigame-unlocks." + key + ".required-emeralds", 0);
                 if (required > 0 && donated >= required) {
                     data.set("minigames." + key + ".unlocked", true);
@@ -3833,30 +5083,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         player.sendMessage(ChatColor.GREEN + safePlayerName(target) + " に " + formatNumber(amount) + "EM 支払いました。");
     }
 
-    private void handleTicketCommand(Player player, String[] args) {
-        if (args.length < 2) {
-            player.sendMessage(ChatColor.RED + "/minerva ticket <1|10|100|1000> [count]");
-            return;
-        }
-        int value = parsePositiveInt(args[1], -1);
-        int count = args.length >= 3 ? parsePositiveInt(args[2], 1) : 1;
-        if (!List.of(1, 10, 100, 1000).contains(value) || count <= 0 || count > 64) {
-            player.sendMessage(ChatColor.RED + "チケットは 1, 10, 100, 1000 EM のいずれか、枚数は1-64です。");
-            return;
-        }
-        int total = safeMultiply(value, count);
-        if (player.getInventory().firstEmpty() == -1) {
-            player.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
-            return;
-        }
-        if (!withdrawEmeralds(player.getUniqueId(), total)) {
-            player.sendMessage(ChatColor.RED + "EMが足りません。必要EM: " + formatNumber(total));
-            return;
-        }
-        player.getInventory().addItem(createEmeraldTicket(value, count));
-        player.sendMessage(ChatColor.GREEN + formatNumber(value) + "EMチケットを " + count + " 枚発行しました。");
-    }
-
     private void handleMerchantCommand(Player player, String[] args) {
         if (!player.hasPermission("minerva.admin")) {
             player.sendMessage(ChatColor.RED + "権限がありません。");
@@ -3868,8 +5094,11 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         switch (args[1].toLowerCase(Locale.ROOT)) {
             case "spawn" -> {
-                spawnMerchant(player.getLocation());
-                player.sendMessage(ChatColor.GREEN + "Minerva商人をスポーンしました。");
+                if (spawnMerchant(player.getLocation())) {
+                    player.sendMessage(ChatColor.GREEN + "Minerva商人をスポーンしました。");
+                } else {
+                    player.sendMessage(ChatColor.RED + "中央広場にはMinerva商人をスポーンできません。");
+                }
             }
             case "reroll" -> {
                 int count = 0;
@@ -4093,37 +5322,76 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1 && "minerva".equalsIgnoreCase(command.getName())) {
-            return List.of("kit", "balance", "pay", "ticket", "merchant", "marchant", "minigame", "athletic", "em", "regen", "chunk", "protect", "status", "shopwand", "serverwand", "sethub", "setserver", "delserver", "warning");
+        if (args.length == 1 && isMinervaRootCommand(command)) {
+            return List.of("check", "list", "tp", "text", "ffa", "auth", "structure", "proposal", "gamerules", "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic", "quest", "em", "regen", "chunk", "protect", "status", "tutorial", "shopwand", "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName()) && "regen".equalsIgnoreCase(args[0])) {
+        if (args.length >= 2 && isMinervaRootCommand(command) && "text".equalsIgnoreCase(args[0])) {
+            return textDisplayFeature.tabComplete(args);
+        }
+        if (args.length >= 2 && isMinervaRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) {
+            return ffaManager.tabComplete(args, sender);
+        }
+        if (args.length >= 2 && isMinervaRootCommand(command) && "auth".equalsIgnoreCase(args[0])) {
+            return discordAuthManager.tabComplete(args, sender);
+        }
+        if (args.length >= 2 && isMinervaRootCommand(command) && "structure".equalsIgnoreCase(args[0])) {
+            return structureManager.tabComplete(args);
+        }
+        if (args.length >= 2 && isMinervaRootCommand(command) && "proposal".equalsIgnoreCase(args[0])) {
+            return proposalManager.tabComplete(args);
+        }
+        if (args.length == 2 && isMinervaRootCommand(command) && "shopwand".equalsIgnoreCase(args[0])) {
+            return List.of("shelf", "barrel", "frame");
+        }
+        if (args.length == 3 && isMinervaRootCommand(command) && "shopwand".equalsIgnoreCase(args[0])) {
+            return ShopCategory.keys();
+        }
+        if ((args.length == 2 || args.length == 3) && isMinervaRootCommand(command) && "jumppadwand".equalsIgnoreCase(args[0])) {
+            return List.of("1", "5", "10", "25", "50", "75", "100");
+        }
+        if (args.length == 2 && isMinervaRootCommand(command) && "tp".equalsIgnoreCase(args[0])) {
+            ConfigurationSection servers = getConfig().getConfigurationSection("servers");
+            List<String> values = new ArrayList<>();
+            if (servers != null) {
+                values.addAll(servers.getKeys(false));
+            }
+            values.addAll(Bukkit.getWorlds().stream().map(World::getName).toList());
+            return values;
+        }
+        if (args.length == 2 && isMinervaRootCommand(command) && "gamerules".equalsIgnoreCase(args[0])) {
+            return Bukkit.getWorlds().stream().map(World::getName).toList();
+        }
+        if (args.length == 2 && isMinervaRootCommand(command) && "regen".equalsIgnoreCase(args[0])) {
             return List.of("0", "1", "2", "4", "force");
         }
-        if (args.length == 3 && "minerva".equalsIgnoreCase(command.getName())
+        if (args.length == 3 && isMinervaRootCommand(command)
                 && "regen".equalsIgnoreCase(args[0]) && "force".equalsIgnoreCase(args[1])) {
             return List.of("0", "1", "2", "4");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName()) && "status".equalsIgnoreCase(args[0])) {
+        if (args.length == 2 && isMinervaRootCommand(command) && "status".equalsIgnoreCase(args[0])) {
             return List.of("reset");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName()) && "minigame".equalsIgnoreCase(args[0])) {
+        if (args.length == 2 && isMinervaRootCommand(command) && "minigame".equalsIgnoreCase(args[0])) {
             return List.of("play", "win", "unlock");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName()) && "athletic".equalsIgnoreCase(args[0])) {
+        if (args.length == 2 && isMinervaRootCommand(command) && "athletic".equalsIgnoreCase(args[0])) {
             return List.of("complete");
         }
-        if (args.length == 3 && "minerva".equalsIgnoreCase(command.getName()) && "athletic".equalsIgnoreCase(args[0])) {
+        if (args.length == 2 && isMinervaRootCommand(command) && "quest".equalsIgnoreCase(args[0])) {
+            return List.of("progress");
+        }
+        if (args.length == 3 && isMinervaRootCommand(command) && "athletic".equalsIgnoreCase(args[0])) {
             return List.of("easy", "normal", "hard", "hardcore");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName())
+        if (args.length == 2 && isMinervaRootCommand(command)
                 && ("merchant".equalsIgnoreCase(args[0]) || "marchant".equalsIgnoreCase(args[0]))) {
             return List.of("spawn", "reroll", "clear");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName())
+        if (args.length == 2 && isMinervaRootCommand(command)
                 && ("em".equalsIgnoreCase(args[0]) || "emerald".equalsIgnoreCase(args[0]))) {
             return List.of("give");
         }
-        if (args.length == 2 && "minerva".equalsIgnoreCase(command.getName())
+        if (args.length == 2 && isMinervaRootCommand(command)
                 && ("delserver".equalsIgnoreCase(args[0]) || "removeserver".equalsIgnoreCase(args[0]))) {
             ConfigurationSection servers = getConfig().getConfigurationSection("servers");
             return servers == null ? Collections.emptyList() : new ArrayList<>(servers.getKeys(false));
@@ -4137,6 +5405,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return Collections.emptyList();
     }
 
+    private boolean isMinervaRootCommand(Command command) {
+        return "minerva".equalsIgnoreCase(command.getName()) || "mva".equalsIgnoreCase(command.getName());
+    }
+
     private record MerchantOffer(Material material, int amount, String rarity, int price) {
     }
 
@@ -4146,26 +5418,38 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private record BarrelShopConfig(String tier, int weight) {
     }
 
+    private record JumpPadPower(int vertical, int horizontal) {
+    }
+
     private record MerchantSale(int quantity, int totalPrice) {
     }
 
     private record TitleDefinition(Material icon, List<String> requiredAdvancements) {
     }
 
-    private static final class ChatColor {
-        private static final String DARK_AQUA = "\u00A73";
-        private static final String DARK_GREEN = "\u00A72";
-        private static final String DARK_PURPLE = "\u00A75";
-        private static final String GOLD = "\u00A76";
-        private static final String GREEN = "\u00A7a";
-        private static final String GRAY = "\u00A77";
-        private static final String AQUA = "\u00A7b";
-        private static final String LIGHT_PURPLE = "\u00A7d";
-        private static final String YELLOW = "\u00A7e";
-        private static final String RED = "\u00A7c";
-        private static final String BLUE = "\u00A79";
-        private static final String WHITE = "\u00A7f";
-        private static final String DARK_GRAY = "\u00A78";
+    private static final class KillRewardWindow {
+        private long startedAtMillis;
+        private int count;
+
+        private KillRewardWindow(long startedAtMillis) {
+            this.startedAtMillis = startedAtMillis;
+        }
+    }
+
+    static final class ChatColor {
+        static final String DARK_AQUA = "\u00A73";
+        static final String DARK_GREEN = "\u00A72";
+        static final String DARK_PURPLE = "\u00A75";
+        static final String GOLD = "\u00A76";
+        static final String GREEN = "\u00A7a";
+        static final String GRAY = "\u00A77";
+        static final String AQUA = "\u00A7b";
+        static final String LIGHT_PURPLE = "\u00A7d";
+        static final String YELLOW = "\u00A7e";
+        static final String RED = "\u00A7c";
+        static final String BLUE = "\u00A79";
+        static final String WHITE = "\u00A7f";
+        static final String DARK_GRAY = "\u00A78";
 
         private ChatColor() {
         }

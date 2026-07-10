@@ -7,6 +7,141 @@ customOreGeneration: true
 serverSecret: "change-this"
 vanillaOreMode: "reduce"
 
+world-rules:
+  fixed-day-worlds:
+    - athletic
+    - minigame
+  spawn:
+    main:
+      world: world
+      x: 0.5
+      y: 0.0
+      z: 0.5
+      yaw: 0.0
+      pitch: 0.0
+    minigame:
+      world: minigame
+      x: 0.5
+      y: 0.0
+      z: 0.5
+      yaw: 0.0
+      pitch: 0.0
+  pvp:
+    default: false
+    enabled-worlds:
+      - minigame
+
+shopwand:
+  enabled: true
+  random-sale:
+    mode: "fixed-on-create"
+    reroll-minutes: 60
+  categories:
+    food:
+      - bread
+      - cooked_beef
+      - cooked_porkchop
+      - golden_carrot
+      - apple
+      - potion
+      - splash_potion
+    combat:
+      - wooden_sword
+      - stone_sword
+      - iron_sword
+      - diamond_sword
+      - netherite_sword
+      - bow
+      - crossbow
+      - shield
+      - iron_pickaxe
+      - diamond_pickaxe
+      - iron_helmet
+      - iron_chestplate
+      - iron_leggings
+      - iron_boots
+    decoration:
+      - poppy
+      - dandelion
+      - white_dye
+      - painting
+      - flower_pot
+      - lantern
+      - chain
+      - candle
+    material:
+      - oak_log
+      - spruce_log
+      - cobblestone
+      - stone
+      - iron_ingot
+      - gold_ingot
+      - copper_ingot
+      - coal
+      - redstone
+      - lapis_lazuli
+    drop:
+      - bone
+      - string
+      - rotten_flesh
+      - spider_eye
+      - gunpowder
+      - ender_pearl
+      - blaze_rod
+    valuables:
+      - emerald
+      - diamond
+      - netherite_ingot
+      - enchanted_golden_apple
+      - netherite_upgrade_smithing_template
+      - heart_of_the_sea
+      - elytra
+    others: []
+
+discord-auth:
+  enabled: true
+  require-before-join: true
+  code-length: 6
+  expire-minutes: 10
+  code-characters: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  discord-command: "/verify code:{code}"
+  discord-invite: "https://discord.gg/ここに招待URL"
+  allow-join-when-auth-system-error: false
+  restrict-unverified: true
+  restrictions:
+    block-break: true
+    block-place: true
+    chat: false
+    command: true
+    movement: false
+  allowed-commands:
+    - "/mva auth"
+    - "/mva auth code"
+    - "/minerva auth"
+    - "/minerva auth code"
+
+structures:
+  enabled: true
+  worldedit-softdepend: true
+  ratio-percent:
+    1: 0.2
+    2: 0.4
+    3: 0.6
+    4: 0.8
+    5: 1.0
+    6: 1.2
+    7: 1.4
+    8: 1.6
+    9: 1.8
+    10: 2.0
+  sky:
+    min-y: 120
+    max-y: 220
+
+proposals:
+  enabled: true
+  require-admin-approval: true
+
 messages:
   unprotectedChunk: "このチャンクは保護されていません。次回の自然再生で再生成される可能性があります。"
   scheduledRegen: "このチャンクは未保護のため、次回メンテナンス時に自然再生されます。"
@@ -19,62 +154,62 @@ regen:
 
 hub:
   world: world
-  x: 0.5
-  y: 64.0
-  z: 0.5
+  x: 0.0
+  y: 0.0
+  z: 0.0
   yaw: 0.0
   pitch: 0.0
 
 servers:
   athletic:
-    world: world
-    x: 100.5
-    y: 64.0
-    z: 0.5
+    world: athletic
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
   minigame:
-    world: world
-    x: 150.5
-    y: 64.0
-    z: 0.5
+    world: minigame
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
   modhub:
     world: world
-    x: 200.5
-    y: 64.0
-    z: 0.5
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
 
 warning-servers:
   basic:
     world: world
-    x: 0.5
-    y: 64.0
-    z: 0.5
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
   caution:
     world: world
-    x: 250.5
-    y: 64.0
-    z: 0.5
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
   detention:
     world: world
-    x: 300.5
-    y: 64.0
-    z: 0.5
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
   imprisonment:
     world: world
-    x: 350.5
-    y: 64.0
-    z: 0.5
+    x: 0.0
+    y: 0.0
+    z: 0.0
     yaw: 0.0
     pitch: 0.0
 
@@ -89,6 +224,171 @@ advancement-rewards:
     emeralds: 100
     bonus-percent: 5
 
+quests:
+  enabled: true
+  reward:
+    apply-reincarnation-bonus: true
+    reincarnation-bonus-compression-percent: 25
+    reincarnation-bonus-cap-percent: 120
+    rounding: floor
+  anti-abuse:
+    repeated-block-window-seconds: 30
+    repeated-block-max-count: 2
+
+protection:
+  block-shop-drops: true
+  allow-shop-interactions-in-spawn: true
+
+barrel-shop:
+  offer-slots: 27
+
+auction:
+  fee-percent: 5
+  bid-step: 100
+  sneak-bid-step: 1000
+  fallback-allow-priced-low-risk-items: true
+
+ffa:
+  enabled: true
+  center: null
+  kit-selection: null
+  restrictions:
+    drop-items: false
+    pickup-items: false
+    block-break: false
+    block-place: false
+    restrict-commands: true
+    allowed-commands:
+      - "/mva ffa leave"
+      - "/mva ffa stats"
+  world-change:
+    leave-on-exit: true
+  respawn:
+    delay-ticks: 2
+    location: "world-spawn"
+  stands:
+    spacing: 2.5
+    selected-kit: "sword"
+    selector: {}
+  kits:
+    armor-balance-version: 2
+    bow:
+      display-name: "§aアーチャー"
+      icon: "bow"
+      armor-tier: "chainmail"
+      armor:
+        helmet: "chainmail_helmet"
+        chestplate: "leather_chestplate"
+        leggings: "chainmail_leggings"
+        boots: "leather_boots"
+      weapon: "iron_sword"
+      bow: true
+      arrows: 64
+      food: 16
+      food-items:
+        - "cooked_chicken:10"
+        - "sweet_berries:8"
+      items:
+        - "golden_carrot:8"
+      potions:
+        - "speed:1:45"
+    sword:
+      display-name: "§cソードマン"
+      icon: "diamond_sword"
+      armor-tier: "diamond"
+      armor:
+        helmet: "diamond_helmet"
+        chestplate: "iron_chestplate"
+        leggings: "diamond_leggings"
+        boots: "iron_boots"
+      weapon: "diamond_sword"
+      food: 16
+      food-items:
+        - "cooked_beef:12"
+        - "bread:6"
+      items:
+        - "golden_apple:1"
+      potions: []
+    shield:
+      display-name: "§9シールダー"
+      icon: "shield"
+      armor-tier: "gold"
+      armor:
+        helmet: "golden_helmet"
+        chestplate: "iron_chestplate"
+        leggings: "golden_leggings"
+        boots: "chainmail_boots"
+      weapon: "golden_sword"
+      shield: true
+      food: 16
+      food-items:
+        - "golden_carrot:12"
+        - "baked_potato:8"
+      items:
+        - "golden_carrot:8"
+      potions:
+        - "instant_health:1:1"
+    spear:
+      display-name: "§eランサー"
+      icon: "iron_spear"
+      armor-tier: "chainmail"
+      armor:
+        helmet: "chainmail_helmet"
+        chestplate: "chainmail_chestplate"
+        leggings: "leather_leggings"
+        boots: "iron_boots"
+      weapon: "iron_spear"
+      backup-weapon: "stone_sword"
+      allow-fallback: false
+      fallback-weapon: "trident"
+      food: 16
+      food-items:
+        - "cooked_mutton:10"
+        - "apple:6"
+      items:
+        - "golden_carrot:8"
+      potions:
+        - "speed:1:45"
+    axe:
+      display-name: "§6ウォリアー"
+      icon: "netherite_axe"
+      armor-tier: "netherite"
+      armor:
+        helmet: "netherite_helmet"
+        chestplate: "diamond_chestplate"
+        leggings: "iron_leggings"
+        boots: "netherite_boots"
+      weapon: "netherite_axe"
+      food: 16
+      food-items:
+        - "cooked_porkchop:10"
+        - "golden_apple:1"
+      items:
+        - "golden_apple:1"
+      potions: []
+    crossbow:
+      display-name: "§dリボルバー"
+      icon: "crossbow"
+      armor-tier: "iron"
+      armor:
+        helmet: "leather_helmet"
+        chestplate: "iron_chestplate"
+        leggings: "chainmail_leggings"
+        boots: "leather_boots"
+      weapon: "iron_sword"
+      loaded-crossbows: 6
+      arrows: 64
+      quick-charge-level: 1
+      multishot: false
+      piercing-level: 0
+      food: 16
+      food-items:
+        - "cooked_rabbit:10"
+        - "golden_carrot:6"
+      items:
+        - "golden_carrot:8"
+      potions:
+        - "speed:1:45"
 merchant-items:
   - material: OAK_LOG
     amount: 1

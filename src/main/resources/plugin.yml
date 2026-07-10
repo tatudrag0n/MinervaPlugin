@@ -4,11 +4,15 @@ version: 26.1.2
 main: org.server.minerva.Minerva
 api-version: '1.21'
 load: POSTWORLD
+softdepend:
+  - WorldEdit
 commands:
   minerva:
     description: Minerva server management and player utilities.
     usage: /minerva
-    aliases: [mv, mnv]
+  mva:
+    description: Minerva server management and player utilities.
+    usage: /mva
   friend:
     description: Minerva friend system.
     usage: /friend
@@ -16,6 +20,9 @@ commands:
   status:
     description: Reset Minerva status data.
     usage: /status <player> reset
+  tutorial:
+    description: Start the Minerva tutorial.
+    usage: /tutorial
 permissions:
   minerva.admin:
     description: Allows Minerva administrative commands and protected-area bypass.
@@ -36,4 +43,25 @@ permissions:
     default: op
   minerva.reward.grant:
     description: Allows granting Minerva rewards from minigame and athletic completion commands.
+    default: op
+  minerva.protect.bypass:
+    description: Allows bypassing MinerVa protected chunk interaction limits.
+    default: op
+  minerva.shop.admin:
+    description: Allows managing MinerVa shop blocks.
+    default: op
+  minerva.auction.admin:
+    description: Allows managing MinerVa item-frame auctions.
+    default: op
+  minerva.text.admin:
+    description: Allows managing MinerVa TextDisplay guide signs.
+    default: op
+  minerva.ffa.admin:
+    description: Allows managing MinerVa FFA minigame settings and kit stands.
+    default: op
+  minerva.structure.admin:
+    description: Allows managing MinerVa custom structures.
+    default: op
+  minerva.proposal.admin:
+    description: Allows reviewing MinerVa proposals.
     default: op

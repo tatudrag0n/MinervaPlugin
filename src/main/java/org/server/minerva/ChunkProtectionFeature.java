@@ -4,9 +4,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.TileState;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -15,6 +17,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -26,26 +30,31 @@ import java.util.concurrent.ConcurrentHashMap;
 
 final class ChunkProtectionFeature implements Listener {
     private final Minerva plugin;
+    private final NamespacedKey protectionBeaconKey;
     private final Map<UUID, String> lastChunkWarning = new ConcurrentHashMap<>();
 
     ChunkProtectionFeature(Minerva plugin) {
         this.plugin = plugin;
+        this.protectionBeaconKey = new NamespacedKey(plugin, "chunk_protection_beacon");
     }
 
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
+        if (plugin.isShopBlock(event.getBlock())) {
+            event.setCancelled(true);
+            event.setDropItems(false);
+            event.setExpToDrop(0);
+            event.getPlayer().sendMessage(ChatColor.YELLOW + "ショップ化されたブロックはショップワンドで解除してください。");
+            return;
+        }
         if (isProtected(event.getPlayer(), event.getBlock().getLocation())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
             return;
         }
-        if (plugin.isShelfShop(event.getBlock())) {
-            plugin.setShelfShop(event.getBlock(), false);
-            event.getPlayer().sendMessage(ChatColor.YELLOW + "棚ショップ設定を解除しました。");
-        }
-        if (plugin.isBarrelShop(event.getBlock())) {
-            plugin.setBarrelShop(event.getBlock(), false);
-            event.getPlayer().sendMessage(ChatColor.YELLOW + "樽ショップ設定を解除しました。");
+        if (event.getBlock().getType() == Material.BEACON && isMarkedChunkProtectionBeacon(event.getBlock().getState())) {
+            event.setDropItems(false);
+            event.getBlock().getWorld().dropItemNaturally(event.getBlock().getLocation(), plugin.createChunkProtectionBeacon());
         }
         plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-broken", 1);
     }
@@ -57,9 +66,11 @@ final class ChunkProtectionFeature implements Listener {
             event.getPlayer().sendMessage(ChatColor.RED + "このチャンクは保護されています。");
             return;
         }
-        if (event.getBlockPlaced().getType() == Material.BEACON) {
+        if (event.getBlockPlaced().getType() == Material.BEACON && isChunkProtectionBeaconItem(event.getItemInHand())) {
+            markChunkProtectionBeacon(event.getBlockPlaced());
             claimChunk(event.getPlayer(), event.getBlockPlaced().getChunk());
             plugin.addPlayerStat(event.getPlayer().getUniqueId(), "total-blocks-placed", 1);
+            plugin.recordQuestProgress(event.getPlayer(), "protected_chunks", 1);
             event.getPlayer().sendMessage(ChatColor.GREEN + "このチャンクを保護しました。");
             return;
         }
@@ -71,23 +82,12 @@ final class ChunkProtectionFeature implements Listener {
 
     @EventHandler
     public void onEntityExplode(EntityExplodeEvent event) {
-        event.blockList().removeIf(block -> isBuildProtectedChunk(block.getChunk()));
-        event.blockList().forEach(this::clearShopSettings);
+        event.blockList().removeIf(block -> isBuildProtectedChunk(block.getChunk()) || plugin.isShopBlock(block));
     }
 
     @EventHandler
     public void onBlockExplode(BlockExplodeEvent event) {
-        event.blockList().removeIf(block -> isBuildProtectedChunk(block.getChunk()));
-        event.blockList().forEach(this::clearShopSettings);
-    }
-
-    private void clearShopSettings(Block block) {
-        if (plugin.isShelfShop(block)) {
-            plugin.setShelfShop(block, false);
-        }
-        if (plugin.isBarrelShop(block)) {
-            plugin.setBarrelShop(block, false);
-        }
+        event.blockList().removeIf(block -> isBuildProtectedChunk(block.getChunk()) || plugin.isShopBlock(block));
     }
 
     void handleRegenCommand(CommandSender sender, String[] args) {
@@ -124,8 +124,15 @@ final class ChunkProtectionFeature implements Listener {
     }
 
     void handleProtectCommand(Player player) {
-        player.sendMessage(ChatColor.YELLOW + "保護したいチャンク内にビーコンを設置してください。");
-        player.sendMessage(ChatColor.YELLOW + "ビーコンが存在するチャンクは、設置者以外が変更できず、自然再生対象から外れます。");
+        ItemStack beacon = plugin.createChunkProtectionBeacon();
+        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(beacon);
+        if (!leftovers.isEmpty()) {
+            player.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
+            return;
+        }
+        player.sendMessage(ChatColor.YELLOW + "保護したいチャンク内にチャンク保護ビーコンを設置してください。");
+        player.sendMessage(ChatColor.YELLOW + "通常ビーコンではチャンク保護されません。");
+        player.sendMessage(ChatColor.YELLOW + "チャンク保護ビーコンが存在するチャンクは、設置者以外が変更できず、自然再生対象から外れます。");
         player.sendMessage(ChatColor.RED + "保護していない建築物・チェスト・地下施設は、警告後に削除される可能性があります。");
     }
 
@@ -147,15 +154,42 @@ final class ChunkProtectionFeature implements Listener {
     }
 
     private boolean isProtected(Player player, Location location) {
-        if (player.hasPermission("minerva.admin")) {
+        if (player.hasPermission("minerva.admin") || player.hasPermission("minerva.protect.bypass")) {
             return false;
         }
         Chunk chunk = location.getChunk();
         String owner = getActiveChunkOwner(chunk);
         if (owner != null) {
-            return !owner.equals(player.getUniqueId().toString());
+            return !isTrusted(player, location);
         }
         return isCentralProtectedChunk(chunk) || isConfiguredProtectedChunk(chunk);
+    }
+
+    boolean isProtectedLocation(Location location) {
+        return location != null && isBuildProtectedChunk(location.getChunk());
+    }
+
+    boolean canBuild(Player player, Location location) {
+        return !isProtected(player, location);
+    }
+
+    boolean isTrusted(Player player, Location location) {
+        if (player == null || location == null) {
+            return false;
+        }
+        Chunk chunk = location.getChunk();
+        String owner = getActiveChunkOwner(chunk);
+        if (owner == null) {
+            return player.hasPermission("minerva.admin") || player.hasPermission("minerva.protect.bypass");
+        }
+        if (owner.equals(player.getUniqueId().toString())) {
+            return true;
+        }
+        return plugin.data().getStringList("chunk-trust." + chunkKey(chunk)).contains(player.getUniqueId().toString());
+    }
+
+    boolean isSpawnProtected(Location location) {
+        return location != null && isCentralProtectedChunk(location.getChunk());
     }
 
     private boolean isActiveProtectedChunk(Location location) {
@@ -168,16 +202,34 @@ final class ChunkProtectionFeature implements Listener {
 
     private String getActiveChunkOwner(Chunk chunk) {
         String owner = plugin.data().getString("chunks." + chunkKey(chunk));
-        return owner != null && chunkContainsBeacon(chunk) ? owner : null;
+        return owner != null && chunkContainsProtectionBeacon(chunk) ? owner : null;
     }
 
-    private boolean chunkContainsBeacon(Chunk chunk) {
+    private boolean chunkContainsProtectionBeacon(Chunk chunk) {
         for (BlockState state : chunk.getTileEntities()) {
-            if (state.getType() == Material.BEACON) {
+            if (state.getType() == Material.BEACON && isMarkedChunkProtectionBeacon(state)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private boolean isChunkProtectionBeaconItem(ItemStack item) {
+        return plugin.isMinervaItem(item, "chunk_protection_beacon");
+    }
+
+    private void markChunkProtectionBeacon(Block block) {
+        BlockState state = block.getState();
+        if (!(state instanceof TileState tileState)) {
+            return;
+        }
+        tileState.getPersistentDataContainer().set(protectionBeaconKey, PersistentDataType.BOOLEAN, true);
+        tileState.update(true, false);
+    }
+
+    private boolean isMarkedChunkProtectionBeacon(BlockState state) {
+        return state instanceof TileState tileState
+                && Boolean.TRUE.equals(tileState.getPersistentDataContainer().get(protectionBeaconKey, PersistentDataType.BOOLEAN));
     }
 
     private void claimChunk(Player player, Chunk chunk) {
@@ -365,7 +417,14 @@ final class ChunkProtectionFeature implements Listener {
     }
 
     private long oreSeed(Chunk chunk, int regenCount, String oreType) {
-        String input = plugin.getConfig().getString("serverSecret", "change-this")
+        String secret = plugin.getConfig().getString("serverSecret", "change-this");
+        if (secret == null || secret.isBlank() || "change-this".equals(secret)) {
+            secret = UUID.randomUUID().toString();
+            plugin.getConfig().set("serverSecret", secret);
+            plugin.saveConfig();
+            plugin.getLogger().warning("Generated a random serverSecret for ore regeneration seeds. Keep config.yml private.");
+        }
+        String input = secret
                 + "|" + chunk.getWorld().getName()
                 + "|" + chunk.getX()
                 + "|" + chunk.getZ()
