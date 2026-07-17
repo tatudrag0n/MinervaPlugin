@@ -27,7 +27,6 @@ final class UtilityItemsFeature implements Listener {
 
     private final NamespacedKey minervaItemKey;
     private final NamespacedKey shopWandTypeKey;
-    private final NamespacedKey shopWandCategoryKey;
     private final NamespacedKey jumpPadPowerKey;
     private final NamespacedKey jumpPadVerticalPowerKey;
     private final NamespacedKey jumpPadHorizontalPowerKey;
@@ -35,7 +34,6 @@ final class UtilityItemsFeature implements Listener {
     UtilityItemsFeature(Minerva plugin) {
         this.minervaItemKey = new NamespacedKey(plugin, "item");
         this.shopWandTypeKey = new NamespacedKey(plugin, "shop_wand_type");
-        this.shopWandCategoryKey = new NamespacedKey(plugin, "shop_wand_category");
         this.jumpPadPowerKey = new NamespacedKey(plugin, "jump_pad_power");
         this.jumpPadVerticalPowerKey = new NamespacedKey(plugin, "jump_pad_vertical_power");
         this.jumpPadHorizontalPowerKey = new NamespacedKey(plugin, "jump_pad_horizontal_power");
@@ -58,15 +56,13 @@ final class UtilityItemsFeature implements Listener {
                         ChatColor.DARK_GRAY + "樽ショップの商品はショップ化時に生成されます。"));
     }
 
-    ItemStack createShopWand(ShopWandType type, ShopCategory category) {
+    ItemStack createShopWand(ShopWandType type) {
         return createMinervaItem(Material.BLAZE_ROD, "shop_wand", ChatColor.GOLD + "ショップワンド",
                 List.of(ChatColor.GRAY + "種類: " + type.key(),
-                        ChatColor.GRAY + "カテゴリ: " + category.key(),
-                        ChatColor.GRAY + "右クリック: 対応ブロックをカテゴリショップ化",
+                        ChatColor.GRAY + "右クリック: 対応ブロックをショップ化",
                         ChatColor.GRAY + "左クリック: ショップ化を解除"), meta -> {
                     PersistentDataContainer container = meta.getPersistentDataContainer();
                     container.set(shopWandTypeKey, PersistentDataType.STRING, type.key());
-                    container.set(shopWandCategoryKey, PersistentDataType.STRING, category.key());
                 });
     }
 
@@ -144,15 +140,6 @@ final class UtilityItemsFeature implements Listener {
         }
         String raw = item.getItemMeta().getPersistentDataContainer().get(shopWandTypeKey, PersistentDataType.STRING);
         return ShopWandType.fromKey(raw);
-    }
-
-    ShopCategory getShopWandCategory(ItemStack item) {
-        if (!isShopWand(item) || item == null || !item.hasItemMeta()) {
-            return ShopCategory.OTHERS;
-        }
-        String raw = item.getItemMeta().getPersistentDataContainer().get(shopWandCategoryKey, PersistentDataType.STRING);
-        ShopCategory category = ShopCategory.fromKey(raw);
-        return category == null ? ShopCategory.OTHERS : category;
     }
 
     String getMinervaItemId(ItemStack item) {

@@ -14,16 +14,23 @@ world-rules:
   spawn:
     main:
       world: world
-      x: 0.5
+      x: 0.0
       y: 0.0
-      z: 0.5
+      z: 0.0
       yaw: 0.0
       pitch: 0.0
     minigame:
       world: minigame
-      x: 0.5
+      x: 0.0
       y: 0.0
-      z: 0.5
+      z: 0.0
+      yaw: 0.0
+      pitch: 0.0
+    survival:
+      world: survival
+      x: 0.0
+      y: 101.0
+      z: 0.0
       yaw: 0.0
       pitch: 0.0
   pvp:
@@ -36,67 +43,6 @@ shopwand:
   random-sale:
     mode: "fixed-on-create"
     reroll-minutes: 60
-  categories:
-    food:
-      - bread
-      - cooked_beef
-      - cooked_porkchop
-      - golden_carrot
-      - apple
-      - potion
-      - splash_potion
-    combat:
-      - wooden_sword
-      - stone_sword
-      - iron_sword
-      - diamond_sword
-      - netherite_sword
-      - bow
-      - crossbow
-      - shield
-      - iron_pickaxe
-      - diamond_pickaxe
-      - iron_helmet
-      - iron_chestplate
-      - iron_leggings
-      - iron_boots
-    decoration:
-      - poppy
-      - dandelion
-      - white_dye
-      - painting
-      - flower_pot
-      - lantern
-      - chain
-      - candle
-    material:
-      - oak_log
-      - spruce_log
-      - cobblestone
-      - stone
-      - iron_ingot
-      - gold_ingot
-      - copper_ingot
-      - coal
-      - redstone
-      - lapis_lazuli
-    drop:
-      - bone
-      - string
-      - rotten_flesh
-      - spider_eye
-      - gunpowder
-      - ender_pearl
-      - blaze_rod
-    valuables:
-      - emerald
-      - diamond
-      - netherite_ingot
-      - enchanted_golden_apple
-      - netherite_upgrade_smithing_template
-      - heart_of_the_sea
-      - elytra
-    others: []
 
 discord-auth:
   enabled: true
@@ -137,6 +83,17 @@ structures:
   sky:
     min-y: 120
     max-y: 220
+  safety:
+    avoid-protected: true
+    avoid-structure-overlap: true
+    overlap-margin-blocks: 2
+    check-space: true
+    max-space-samples: 512
+    max-solid-ratio:
+      sky: 0.0
+      ground: 0.2
+      semiunderground: 0.7
+      underground: 1.0
 
 proposals:
   enabled: true
@@ -162,6 +119,7 @@ hub:
 
 servers:
   athletic:
+    icon: elytra
     world: athletic
     x: 0.0
     y: 0.0
@@ -169,6 +127,7 @@ servers:
     yaw: 0.0
     pitch: 0.0
   minigame:
+    icon: diamond_sword
     world: minigame
     x: 0.0
     y: 0.0
@@ -176,6 +135,7 @@ servers:
     yaw: 0.0
     pitch: 0.0
   modhub:
+    icon: compass
     world: world
     x: 0.0
     y: 0.0
@@ -272,123 +232,298 @@ ffa:
     selector: {}
   kits:
     armor-balance-version: 2
+    kit-balance-version: 4
+    default: "sword"
+    enabled:
+      - "axe"
+      - "bow"
+      - "spear"
+      - "crossbow"
+      - "sword"
+      - "shield"
+      - "trident"
+      - "mace"
+      - "gambler"
+      - "wizard"
+      - "sniper"
+      - "vampire"
+      - "grappler"
+      - "assassin"
+      - "necromancer"
+      - "trapper"
+      - "bug_mania"
+    food-cooldown-seconds: 15
     bow:
-      display-name: "§aアーチャー"
+      display-name: "§a狩人"
       icon: "bow"
+      armor-tier: "leather"
+      armor:
+        helmet: "leather_helmet"
+        chestplate: "chainmail_chestplate"
+        leggings: "leather_leggings"
+        boots: "none"
+      weapon: "none"
+      bow: true
+      arrows: 1
+      bow-enchantments:
+        - "power:1"
+        - "infinity:1"
+      food-items:
+        - "cooked_rabbit:1"
+      items: []
+      potions: []
+    sword:
+      display-name: "§c剣士"
+      icon: "iron_sword"
       armor-tier: "chainmail"
       armor:
-        helmet: "chainmail_helmet"
-        chestplate: "leather_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "leather_boots"
+        helmet: "iron_helmet"
+        chestplate: "chainmail_chestplate"
+        leggings: "iron_leggings"
+        boots: "none"
       weapon: "iron_sword"
-      bow: true
-      arrows: 64
-      food: 16
+      golden-apple-cooldown-seconds: 100
+      weapon-enchantments:
+        - "sharpness:1"
       food-items:
-        - "cooked_chicken:10"
-        - "sweet_berries:8"
-      items:
-        - "golden_carrot:8"
-      potions:
-        - "speed:1:45"
-    sword:
-      display-name: "§cソードマン"
-      icon: "diamond_sword"
-      armor-tier: "diamond"
-      armor:
-        helmet: "diamond_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "diamond_leggings"
-        boots: "iron_boots"
-      weapon: "diamond_sword"
-      food: 16
-      food-items:
-        - "cooked_beef:12"
-        - "bread:6"
-      items:
-        - "golden_apple:1"
+        - "cooked_beef:1"
+      items: []
       potions: []
     shield:
       display-name: "§9シールダー"
       icon: "shield"
-      armor-tier: "gold"
-      armor:
-        helmet: "golden_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "golden_leggings"
-        boots: "chainmail_boots"
-      weapon: "golden_sword"
-      shield: true
-      food: 16
-      food-items:
-        - "golden_carrot:12"
-        - "baked_potato:8"
-      items:
-        - "golden_carrot:8"
-      potions:
-        - "instant_health:1:1"
-    spear:
-      display-name: "§eランサー"
-      icon: "iron_spear"
       armor-tier: "chainmail"
       armor:
         helmet: "chainmail_helmet"
-        chestplate: "chainmail_chestplate"
+        chestplate: "iron_chestplate"
         leggings: "leather_leggings"
-        boots: "iron_boots"
-      weapon: "iron_spear"
-      backup-weapon: "stone_sword"
-      allow-fallback: false
-      fallback-weapon: "trident"
-      food: 16
+        boots: "chainmail_boots"
+      weapon: "stone_sword"
+      shield: true
       food-items:
-        - "cooked_mutton:10"
-        - "apple:6"
-      items:
-        - "golden_carrot:8"
-      potions:
-        - "speed:1:45"
-    axe:
-      display-name: "§6ウォリアー"
-      icon: "netherite_axe"
-      armor-tier: "netherite"
+        - "pumpkin_pie:1"
+      items: []
+      potions: []
+    spear:
+      display-name: "§e槍使い"
+      icon: "iron_spear"
+      armor-tier: "leather"
       armor:
-        helmet: "netherite_helmet"
-        chestplate: "diamond_chestplate"
-        leggings: "iron_leggings"
-        boots: "netherite_boots"
-      weapon: "netherite_axe"
-      food: 16
+        helmet: "leather_helmet"
+        chestplate: "chainmail_chestplate"
+        leggings: "none"
+        boots: "leather_boots"
+      weapon: "iron_spear"
+      allow-fallback: false
+      weapon-enchantments: []
       food-items:
-        - "cooked_porkchop:10"
-        - "golden_apple:1"
-      items:
-        - "golden_apple:1"
+        - "baked_potato:1"
+      items: []
+      potions: []
+    axe:
+      display-name: "§6戦士"
+      icon: "iron_axe"
+      armor-tier: "chainmail"
+      armor:
+        helmet: "none"
+        chestplate: "iron_chestplate"
+        leggings: "chainmail_leggings"
+        boots: "iron_boots"
+      weapon: "iron_axe"
+      weapon-enchantments:
+        - "sharpness:1"
+      slowness-amplifier: 0
+      food-items:
+        - "cooked_porkchop:1"
+      items: []
       potions: []
     crossbow:
       display-name: "§dリボルバー"
       icon: "crossbow"
-      armor-tier: "iron"
+      armor-tier: "chainmail"
       armor:
         helmet: "leather_helmet"
-        chestplate: "iron_chestplate"
-        leggings: "chainmail_leggings"
-        boots: "leather_boots"
-      weapon: "iron_sword"
-      loaded-crossbows: 6
-      arrows: 64
-      quick-charge-level: 1
-      multishot: false
-      piercing-level: 0
-      food: 16
+        chestplate: "chainmail_chestplate"
+        leggings: "none"
+        boots: "chainmail_boots"
+      weapon: "none"
+      ammo-capacity: 6
+      reload-ticks: 75
+      damage-multiplier: 0.7
       food-items:
-        - "cooked_rabbit:10"
-        - "golden_carrot:6"
-      items:
-        - "golden_carrot:8"
+        - "bread:1"
+      items: []
+      potions: []
+    wizard:
+      display-name: "§5ケミスト"
+      icon: "splash_potion"
+      armor-tier: "leather"
+      armor:
+        helmet: "golden_helmet"
+        chestplate: "leather_chestplate"
+        leggings: "golden_leggings"
+        boots: "none"
+      weapon: "wooden_sword"
+      potion-cooldowns:
+        slow: 12
+        harm: 15
+        poison: 18
+        weakness: 15
+        blindness: 25
+      food-items:
+        - "honey_bottle:1"
+      items: []
       potions:
-        - "speed:1:45"
+        - { effect: "slowness", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "slow", name: "§7鈍化のスプラッシュポーション" }
+        - { effect: "harm", material: "splash_potion", level: 1, seconds: 1, amount: 1, ability: "harm", name: "§5負傷のスプラッシュポーション" }
+        - { effect: "poison", material: "splash_potion", level: 1, seconds: 8, amount: 1, ability: "poison", name: "§2毒のスプラッシュポーション" }
+        - { effect: "weakness", material: "splash_potion", level: 1, seconds: 10, amount: 1, ability: "weakness", name: "§8弱化のスプラッシュポーション" }
+        - { effect: "blindness", material: "splash_potion", level: 1, seconds: 5, amount: 1, ability: "blindness", name: "§0盲目のスプラッシュポーション" }
+    trident:
+      display-name: "§b海の戦士"
+      icon: "trident"
+      armor-tier: "chainmail"
+      armor:
+        helmet: "turtle_helmet"
+        chestplate: "chainmail_chestplate"
+        leggings: "chainmail_leggings"
+        boots: "none"
+      weapon: "trident"
+      weapon-enchantments:
+        - "loyalty:3"
+      food-items:
+        - "cooked_salmon:1"
+      items: []
+      potions: []
+    mace:
+      display-name: "§7重戦士"
+      icon: "mace"
+      armor-tier: "iron"
+      armor:
+        helmet: "chainmail_helmet"
+        chestplate: "iron_chestplate"
+        leggings: "iron_leggings"
+        boots: "chainmail_boots"
+      weapon: "mace"
+      wind-charge: 10
+      wind-charge-refill-seconds: 10
+      max-final-damage: 12.0
+      food-items:
+        - "cooked_beef:1"
+      items: []
+      potions: []
+    gambler:
+      display-name: "§6ギャンブラー"
+      icon: "golden_sword"
+      armor-tier: "leather"
+      armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
+      min-damage-multiplier: -3.0
+      max-damage-multiplier: 3.0
+      mp-min: -10
+      mp-max: 10
+      food-items: [ "cookie:1" ]
+      items: []
+      potions: []
+    sniper:
+      display-name: "§8スナイパー"
+      icon: "crossbow"
+      armor-tier: "leather"
+      armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
+      ammo-capacity: 2
+      reload-ticks: 125
+      damage-multiplier: 5.0
+      crossbow-enchantments: [ "piercing:4" ]
+      food-items: [ "baked_potato:1" ]
+      items: []
+      potions: []
+    vampire:
+      display-name: "§4ヴァンパイア"
+      icon: "redstone"
+      armor-tier: "leather"
+      armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
+      lifesteal-percent: 50
+      damage-per-strength-level: 100
+      sun-damage: 1.0
+      food-items: [ "cooked_beef:1" ]
+      items: []
+      potions: []
+    grappler:
+      display-name: "§2グラップラー"
+      icon: "golden_carrot"
+      armor-tier: "none"
+      armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
+      food-items: [ "golden_carrot:1" ]
+      items: []
+      potions: []
+    assassin:
+      display-name: "§5アサシン"
+      icon: "golden_sword"
+      armor-tier: "leather"
+      armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "chainmail_boots" }
+      fatal-sword-enchantments: [ "unbreaking:1" ]
+      food-items: [ "sweet_berries:1" ]
+      items: []
+      potions: []
+    necromancer:
+      display-name: "§5ネクロマンサー"
+      icon: "zombie_spawn_egg"
+      armor-tier: "leather"
+      armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
+      max-summons: 5
+      food-items: [ "rotten_flesh:1" ]
+      items: []
+      potions: []
+    trapper:
+      display-name: "§eトラッパー"
+      icon: "stone_pressure_plate"
+      armor-tier: "leather"
+      armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
+      trap-duration-seconds: 30
+      trap-cooldown-seconds: 20
+      food-items: [ "baked_potato:1" ]
+      items: []
+      potions: []
+    bug_mania:
+      display-name: "§2バグマニア"
+      icon: "silverfish_spawn_egg"
+      armor-tier: "leather"
+      armor: { helmet: "leather_helmet", chestplate: "chainmail_chestplate", leggings: "leather_leggings", boots: "none" }
+      max-owned-silverfish: 6
+      max-global-silverfish: 30
+      food-items: [ "spider_eye:1" ]
+      items: []
+      potions: []
+  rewards:
+    kill-mp: 50
+    same-target-reset-seconds: 600
+  field-items:
+    enabled: true
+    min-players: 2
+    event-despawn-seconds: 60
+    loot-despawn-seconds: 90
+    event-interval-min-seconds: 150
+    event-interval-max-seconds: 240
+    spawnpoints: []
+    rarities:
+      common: 50
+      uncommon: 30
+      rare: 14
+      epic: 5
+      legendary: 1
+    events:
+      rain: { weight: 10, duration-seconds: 90 }
+      snow: { weight: 10, duration-seconds: 90 }
+      blizzard: { weight: 4, duration-seconds: 45 }
+      berserk: { weight: 10, duration-seconds: 25 }
+      speed: { weight: 10, duration-seconds: 20 }
+      iron_body: { weight: 8, duration-seconds: 25 }
+      overdrive: { weight: 6, duration-seconds: 45 }
+      one_shot_bow: { weight: 4, duration-seconds: 25 }
+      mp_fever: { weight: 8, duration-seconds: 120 }
+      sky_spear: { weight: 3, duration-seconds: 45 }
+      time_shift: { weight: 8, duration-seconds: 90 }
+      heal_self: { weight: 12 }
+      heal_all: { weight: 7 }
 merchant-items:
   - material: OAK_LOG
     amount: 1
@@ -606,3 +741,8 @@ minigame-unlocks:
     required-emeralds: 10000
   ffa:
     required-emeralds: 10000
+
+auto-shutdown:
+  enabled: false
+  # Delay in seconds after the last player leaves before shutting down the server
+  delay-seconds: 60

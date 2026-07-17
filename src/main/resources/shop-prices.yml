@@ -1,5 +1,5 @@
 # Generated from minecraft_em_price_table_26_2_barrel_shop.xlsx (PriceTable).
-# Values are [Price_EM, Sell_EM]. Merchant and barrel pools follow the 26.2 table weights.
+# Values are [Price_MP, Sell_MP]. Merchant and barrel pools follow the 26.2 table weights.
 prices:
   AXOLOTL_BUCKET: [970, 700]
   COD_BUCKET: [245, 175]

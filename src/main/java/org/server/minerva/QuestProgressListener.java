@@ -2,6 +2,7 @@ package org.server.minerva;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
@@ -22,6 +23,7 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.projectiles.ProjectileSource;
 
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ final class QuestProgressListener implements Listener {
 
     private final Minerva plugin;
     private final QuestService quests;
+    private final NamespacedKey ffaEntityKindKey;
     private final Map<UUID, Map<UUID, DamageParticipation>> damageByEntity = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, Long>> recentPlacedBlocks = new ConcurrentHashMap<>();
     private final Map<UUID, RepeatedBlockAction> lastBlockActions = new ConcurrentHashMap<>();
@@ -46,6 +49,7 @@ final class QuestProgressListener implements Listener {
     QuestProgressListener(Minerva plugin, QuestService quests) {
         this.plugin = plugin;
         this.quests = quests;
+        this.ffaEntityKindKey = new NamespacedKey(plugin, "ffa_entity_kind");
     }
 
     @EventHandler
@@ -142,6 +146,9 @@ final class QuestProgressListener implements Listener {
             return;
         }
         Map<UUID, DamageParticipation> participation = damageByEntity.remove(entity.getUniqueId());
+        if (isNecromancerSummon(entity)) {
+            return;
+        }
         Player killer = entity.getKiller();
         if (killer != null && isHostile(entity.getType()) && hasRecentEffectiveParticipation(entity, killer.getUniqueId(), participation)) {
             quests.addProgress(killer, "hostile_kills", 1);
@@ -149,6 +156,11 @@ final class QuestProgressListener implements Listener {
         if (entity.getType() == EntityType.ENDER_DRAGON || entity.getType() == EntityType.WITHER || entity.getType() == EntityType.ELDER_GUARDIAN) {
             grantBossParticipation(entity, participation, killer);
         }
+    }
+
+    private boolean isNecromancerSummon(LivingEntity entity) {
+        String kind = entity.getPersistentDataContainer().get(ffaEntityKindKey, PersistentDataType.STRING);
+        return "summon".equals(kind);
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)

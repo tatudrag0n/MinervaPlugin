@@ -1,0 +1,17 @@
+name: genstructure
+version: ${project.version}
+main: org.server.genstructure.GenStructurePlugin
+api-version: '1.21'
+load: POSTWORLD
+softdepend:
+  - WorldEdit
+  - minerva
+commands:
+  genstructure:
+    description: Saves and generates custom structures.
+    usage: /genstructure
+    aliases: [gs, gstructure]
+permissions:
+  genstructure.admin:
+    description: Allows managing generated structures.
+    default: op

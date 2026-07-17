@@ -36,8 +36,12 @@ final class EconomyPriceTable {
                 continue;
             }
             String path = materialName + ".";
-            int price = section.getInt(path + "Price_EM", 0);
-            int sell = section.getInt(path + "Sell_EM", 0);
+            int price = section.contains(path + "Price_MP")
+                    ? section.getInt(path + "Price_MP", 0)
+                    : section.getInt(path + "Price_EM", 0);
+            int sell = section.contains(path + "Sell_MP")
+                    ? section.getInt(path + "Sell_MP", 0)
+                    : section.getInt(path + "Sell_EM", 0);
             Entry entry = new Entry(
                     material,
                     section.getString(path + "Item_ID", materialName.toLowerCase(Locale.ROOT)),

@@ -1,4 +1,4 @@
-package org.server.minerva;
+package org.server.genstructure;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -13,9 +13,9 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 
 final class WorldEditHook {
-    private final Minerva plugin;
+    private final GenStructurePlugin plugin;
 
-    WorldEditHook(Minerva plugin) {
+    WorldEditHook(GenStructurePlugin plugin) {
         this.plugin = plugin;
     }
 

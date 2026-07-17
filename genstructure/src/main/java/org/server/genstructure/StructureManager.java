@@ -1,4 +1,4 @@
-package org.server.minerva;
+package org.server.genstructure;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -20,23 +20,22 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 final class StructureManager implements Listener {
     private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9_-]{1,48}");
 
-    private final Minerva plugin;
+    private final GenStructurePlugin plugin;
     private final WorldEditHook worldEdit;
     private final Random random = new Random();
     private File file;
     private YamlConfiguration data;
 
-    StructureManager(Minerva plugin) {
+    StructureManager(GenStructurePlugin plugin) {
         this.plugin = plugin;
         this.worldEdit = new WorldEditHook(plugin);
     }
@@ -46,47 +45,49 @@ final class StructureManager implements Listener {
         file = new File(plugin.getDataFolder(), "structures.yml");
         if (!file.exists()) {
             data = new YamlConfiguration();
-            data.set("structures.registered", new java.util.LinkedHashMap<>());
-            data.set("structures.generated", new java.util.LinkedHashMap<>());
-            data.set("structures.generation-rules", new java.util.LinkedHashMap<>());
+            data.set("structures.registered", new LinkedHashMap<>());
+            data.set("structures.generated", new LinkedHashMap<>());
+            data.set("structures.generation-rules", new LinkedHashMap<>());
             save();
         } else {
             data = YamlConfiguration.loadConfiguration(file);
         }
         if (!worldEdit.available()) {
-            plugin.getLogger().warning("WorldEdit is not installed. Clipboard structure registration/paste is disabled, range structures remain available.");
+            plugin.getLogger().warning("WorldEdit is not installed. Clipboard registration and paste are disabled; range structures remain available.");
         }
     }
 
     boolean handleCommand(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("minerva.admin")) {
+        if (!sender.hasPermission("genstructure.admin")) {
             sender.sendMessage("§c権限がありません。");
             return true;
         }
-        if (args.length < 2) {
-            sender.sendMessage("§e/mva structure register|generate|delete <name>");
+        if (args.length < 1) {
+            sendUsage(sender);
             return true;
         }
         ensureLoaded();
-        return switch (args[1].toLowerCase(Locale.ROOT)) {
+        return switch (args[0].toLowerCase(Locale.ROOT)) {
             case "register" -> handleRegister(sender, args);
             case "generate" -> handleGenerate(sender, args);
             case "delete", "delate" -> handleDelete(sender, args);
+            case "list" -> handleList(sender);
+            case "reload" -> handleReload(sender);
             default -> {
-                sender.sendMessage("§e/mva structure register|generate|delete <name>");
+                sendUsage(sender);
                 yield true;
             }
         };
     }
 
     List<String> tabComplete(String[] args) {
-        if (args.length == 2) {
-            return List.of("register", "generate", "delete", "delate");
+        if (args.length == 1) {
+            return List.of("register", "generate", "delete", "list", "reload");
         }
-        if (args.length == 4 && "register".equalsIgnoreCase(args[1])) {
+        if (args.length == 3 && "register".equalsIgnoreCase(args[0])) {
             return List.of("clipboard", "range");
         }
-        if (args.length == 5 && "generate".equalsIgnoreCase(args[1])) {
+        if (args.length == 4 && "generate".equalsIgnoreCase(args[0])) {
             return List.of("underground", "semiunderground", "ground", "sky", "range");
         }
         return List.of();
@@ -108,16 +109,16 @@ final class StructureManager implements Listener {
     }
 
     private boolean handleRegister(CommandSender sender, String[] args) {
-        if (args.length < 4) {
-            sender.sendMessage("§c/mva structure register <name> clipboard|range ...");
+        if (args.length < 3) {
+            sender.sendMessage("§c/genstructure register <name> clipboard|range ...");
             return true;
         }
-        String name = args[2].toLowerCase(Locale.ROOT);
+        String name = args[1].toLowerCase(Locale.ROOT);
         if (!isSafeName(name)) {
             sender.sendMessage("§c登録名は英数字、_、- の48文字以内にしてください。");
             return true;
         }
-        String source = args[3].toLowerCase(Locale.ROOT);
+        String source = args[2].toLowerCase(Locale.ROOT);
         if ("clipboard".equals(source)) {
             return registerClipboard(sender, name);
         }
@@ -158,21 +159,21 @@ final class StructureManager implements Listener {
     }
 
     private boolean registerRange(CommandSender sender, String name, String[] args) {
-        if (args.length < 11) {
-            sender.sendMessage("§c/mva structure register <name> range <world> <x1> <y1> <z1> <x2> <y2> <z2>");
+        if (args.length < 10) {
+            sender.sendMessage("§c/genstructure register <name> range <world> <x1> <y1> <z1> <x2> <y2> <z2>");
             return true;
         }
-        World world = Bukkit.getWorld(args[4]);
+        World world = Bukkit.getWorld(args[3]);
         if (world == null) {
-            sender.sendMessage("§cワールドが見つかりません: " + args[4]);
+            sender.sendMessage("§cワールドが見つかりません: " + args[3]);
             return true;
         }
-        int x1 = parseInt(args[5], 0);
-        int y1 = parseInt(args[6], 0);
-        int z1 = parseInt(args[7], 0);
-        int x2 = parseInt(args[8], 0);
-        int y2 = parseInt(args[9], 0);
-        int z2 = parseInt(args[10], 0);
+        int x1 = parseInt(args[4], 0);
+        int y1 = parseInt(args[5], 0);
+        int z1 = parseInt(args[6], 0);
+        int x2 = parseInt(args[7], 0);
+        int y2 = parseInt(args[8], 0);
+        int z2 = parseInt(args[9], 0);
         int minX = Math.min(x1, x2);
         int minY = Math.min(y1, y2);
         int minZ = Math.min(z1, z2);
@@ -216,46 +217,46 @@ final class StructureManager implements Listener {
     }
 
     private boolean handleGenerate(CommandSender sender, String[] args) {
-        if (args.length < 5) {
-            sender.sendMessage("§c/mva structure generate <name> <ratio1-10> <mode> [range...] [biome include|exclude ...]");
+        if (args.length < 4) {
+            sender.sendMessage("§c/genstructure generate <name> <ratio1-10> <mode> [range...] [biome include|exclude ...]");
             return true;
         }
-        String name = args[2].toLowerCase(Locale.ROOT);
+        String name = args[1].toLowerCase(Locale.ROOT);
         if (!data.contains(registeredPath(name))) {
             sender.sendMessage("§c構造物が登録されていません: " + name);
             return true;
         }
-        int ratio = parseInt(args[3], -1);
+        int ratio = parseInt(args[2], -1);
         if (ratio < 1 || ratio > 10) {
             sender.sendMessage("§c生成比率は 1〜10 です。");
             return true;
         }
-        StructurePlacementMode mode = StructurePlacementMode.fromKey(args[4]);
+        StructurePlacementMode mode = StructurePlacementMode.fromKey(args[3]);
         if (mode == null) {
             sender.sendMessage("§cmode は underground/semiunderground/ground/sky/range です。");
             return true;
         }
-        int biomeIndex = findArg(args, "biome", 5);
+        int biomeIndex = findArg(args, "biome", 4);
         int rangeEnd = biomeIndex < 0 ? args.length : biomeIndex;
         String path = "structures.generation-rules." + name;
         data.set(path + ".ratio", ratio);
         data.set(path + ".mode", mode.key());
         if (mode == StructurePlacementMode.RANGE) {
-            if (rangeEnd - 5 < 7) {
+            if (rangeEnd - 4 < 7) {
                 sender.sendMessage("§crange mode では <world> <x1> <y1> <z1> <x2> <y2> <z2> が必要です。");
                 return true;
             }
-            World world = Bukkit.getWorld(args[5]);
+            World world = Bukkit.getWorld(args[4]);
             if (world == null) {
-                sender.sendMessage("§cワールドが見つかりません: " + args[5]);
+                sender.sendMessage("§cワールドが見つかりません: " + args[4]);
                 return true;
             }
             writeRangeRule(path, world.getName(),
-                    parseInt(args[6], 0), parseInt(args[7], 0), parseInt(args[8], 0),
-                    parseInt(args[9], 0), parseInt(args[10], 0), parseInt(args[11], 0));
+                    parseInt(args[5], 0), parseInt(args[6], 0), parseInt(args[7], 0),
+                    parseInt(args[8], 0), parseInt(args[9], 0), parseInt(args[10], 0));
         } else {
-            World world = sender instanceof Player player ? player.getWorld() : Bukkit.getWorld(plugin.getConfig().getString("hub.world", "world"));
-            data.set(path + ".world", world == null ? "world" : world.getName());
+            World world = defaultWorld(sender);
+            data.set(path + ".world", world == null ? plugin.getConfig().getString("structures.default-world", "world") : world.getName());
             data.set(path + ".range", null);
         }
         writeBiomeRule(path, args, biomeIndex);
@@ -265,11 +266,11 @@ final class StructureManager implements Listener {
     }
 
     private boolean handleDelete(CommandSender sender, String[] args) {
-        if (args.length < 3) {
-            sender.sendMessage("§c/mva structure delete <name>");
+        if (args.length < 2) {
+            sender.sendMessage("§c/genstructure delete <name>");
             return true;
         }
-        String name = args[2].toLowerCase(Locale.ROOT);
+        String name = args[1].toLowerCase(Locale.ROOT);
         String fileName = data.getString(registeredPath(name) + ".file");
         data.set(registeredPath(name), null);
         data.set("structures.generation-rules." + name, null);
@@ -282,6 +283,23 @@ final class StructureManager implements Listener {
         }
         save();
         sender.sendMessage("§e構造物登録と生成管理データを削除しました: " + name);
+        return true;
+    }
+
+    private boolean handleList(CommandSender sender) {
+        ConfigurationSection registered = data.getConfigurationSection("structures.registered");
+        if (registered == null || registered.getKeys(false).isEmpty()) {
+            sender.sendMessage("§e登録済み構造物はありません。");
+            return true;
+        }
+        sender.sendMessage("§a登録済み構造物: " + String.join(", ", registered.getKeys(false)));
+        return true;
+    }
+
+    private boolean handleReload(CommandSender sender) {
+        plugin.reloadConfig();
+        load();
+        sender.sendMessage("§aGenStructure 設定を再読み込みしました。");
         return true;
     }
 
@@ -372,7 +390,7 @@ final class StructureManager implements Listener {
         if (plugin.getConfig().getBoolean("structures.safety.avoid-protected", true) && overlapsProtectedArea(bounds)) {
             return false;
         }
-        if (plugin.getConfig().getBoolean("structures.safety.avoid-structure-overlap", true) && overlapsGeneratedStructure(name, bounds)) {
+        if (plugin.getConfig().getBoolean("structures.safety.avoid-structure-overlap", true) && overlapsGeneratedStructure(bounds)) {
             return false;
         }
         return hasAcceptableSpace(bounds, mode);
@@ -420,7 +438,7 @@ final class StructureManager implements Listener {
         return false;
     }
 
-    private boolean overlapsGeneratedStructure(String candidateName, StructureBounds candidate) {
+    private boolean overlapsGeneratedStructure(StructureBounds candidate) {
         int margin = Math.max(0, plugin.getConfig().getInt("structures.safety.overlap-margin-blocks", 2));
         ConfigurationSection generated = data.getConfigurationSection("structures.generated");
         if (generated == null) {
@@ -515,7 +533,7 @@ final class StructureManager implements Listener {
                 location.getWorld().getBlockAt(location.getBlockX() + dx, location.getBlockY() + dy, location.getBlockZ() + dz)
                         .setBlockData(blockData, false);
             } catch (IllegalArgumentException ignored) {
-                // Skip block data from newer/unknown versions.
+                // Skip block data from newer or unknown server versions.
             }
         }
         return true;
@@ -591,6 +609,17 @@ final class StructureManager implements Listener {
         return true;
     }
 
+    private World defaultWorld(CommandSender sender) {
+        if (sender instanceof Player player) {
+            return player.getWorld();
+        }
+        World configured = Bukkit.getWorld(plugin.getConfig().getString("structures.default-world", "world"));
+        if (configured != null) {
+            return configured;
+        }
+        return Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+    }
+
     private int findArg(String[] args, String needle, int from) {
         for (int i = from; i < args.length; i++) {
             if (needle.equalsIgnoreCase(args[i])) {
@@ -654,12 +683,15 @@ final class StructureManager implements Listener {
 
     private void ensureConfigDefaults() {
         setIfMissing("structures.enabled", true);
+        setIfMissing("structures.default-world", "world");
         for (int i = 1; i <= 10; i++) {
             setIfMissing("structures.ratio-percent." + i, i * 0.2D);
         }
         setIfMissing("structures.sky.min-y", 120);
         setIfMissing("structures.sky.max-y", 220);
         setIfMissing("structures.safety.avoid-protected", true);
+        setIfMissing("structures.safety.avoid-minerva-protected", true);
+        setIfMissing("structures.safety.protected-chunks", List.of());
         setIfMissing("structures.safety.avoid-structure-overlap", true);
         setIfMissing("structures.safety.overlap-margin-blocks", 2);
         setIfMissing("structures.safety.check-space", true);
@@ -675,6 +707,11 @@ final class StructureManager implements Listener {
         if (!plugin.getConfig().contains(path)) {
             plugin.getConfig().set(path, value);
         }
+    }
+
+    private void sendUsage(CommandSender sender) {
+        sender.sendMessage("§e/genstructure register|generate|delete|list|reload");
+        sender.sendMessage("§7alias: /gs");
     }
 
     private record StructureBounds(World world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {

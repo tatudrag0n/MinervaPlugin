@@ -156,7 +156,10 @@ final class ProposalManager {
         return switch (type) {
             case "title" -> applyTitle(sender, proposalId, section);
             case "custom_item", "customitem", "item" -> applyCustomItem(sender, proposalId, section);
-            case "shop_item", "shopitem" -> applyShopItem(sender, section);
+            case "shop_item", "shopitem" -> {
+                sender.sendMessage(ChatColor.RED + "shop_item proposal は廃止されました。ショップ価格表で管理してください。");
+                yield false;
+            }
             default -> {
                 sender.sendMessage(ChatColor.RED + "未対応の proposal type です: " + type);
                 yield false;
@@ -202,25 +205,6 @@ final class ProposalManager {
         plugin.getConfig().set(path + ".glint", section.getBoolean("glint", false));
         plugin.getConfig().set(path + ".unbreakable", section.getBoolean("unbreakable", false));
         plugin.getConfig().set(path + ".source", section.getString("source", "proposal"));
-        return true;
-    }
-
-    private boolean applyShopItem(CommandSender sender, ConfigurationSection section) {
-        String category = section.getString("category", "").toLowerCase(Locale.ROOT);
-        ShopCategory shopCategory = ShopCategory.fromKey(category);
-        String materialName = section.getString("material", "");
-        Material material = Material.matchMaterial(materialName);
-        if (shopCategory == null || material == null || !material.isItem()) {
-            sender.sendMessage(ChatColor.RED + "shop_item proposal には category と material が必要です。");
-            return false;
-        }
-        String path = "shopwand.categories." + shopCategory.key();
-        List<String> values = new ArrayList<>(plugin.getConfig().getStringList(path));
-        String normalized = material.name().toLowerCase(Locale.ROOT);
-        if (!values.contains(normalized)) {
-            values.add(normalized);
-        }
-        plugin.getConfig().set(path, values);
         return true;
     }
 

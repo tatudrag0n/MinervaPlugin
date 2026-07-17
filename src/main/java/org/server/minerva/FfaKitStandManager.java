@@ -95,7 +95,7 @@ final class FfaKitStandManager {
 
     FfaKit selectedKit() {
         FfaKit kit = FfaKit.fromKey(plugin.getConfig().getString("ffa.stands.selected-kit", FfaKit.SWORD.key()));
-        return kit == null ? FfaKit.SWORD : kit;
+        return kit == null || !kit.isActive(config) ? FfaKit.SWORD : kit;
     }
 
     private FfaKit legacyKitFromEntity(Entity entity) {

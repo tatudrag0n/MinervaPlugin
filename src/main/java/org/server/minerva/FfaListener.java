@@ -2,6 +2,7 @@ package org.server.minerva;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -11,15 +12,29 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.PotionSplashEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
+import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerPickupArrowEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.projectiles.ProjectileSource;
 
 final class FfaListener implements Listener {
@@ -45,6 +60,10 @@ final class FfaListener implements Listener {
     public void onKitStandDamage(EntityDamageEvent event) {
         if (ffa.stands().isKitSelector(event.getEntity())) {
             event.setCancelled(true);
+            return;
+        }
+        if (ffa.handleFieldItemDamage(event)) {
+            return;
         }
     }
 
@@ -74,6 +93,7 @@ final class FfaListener implements Listener {
                 return;
             }
             event.setCancelled(false);
+            ffa.adjustFfaDamage(event, attacker, victim);
             return;
         }
         event.setCancelled(true);
@@ -89,6 +109,40 @@ final class FfaListener implements Listener {
         }
         if (ffa.handleKitSelectorClick(player, event)) {
             event.setCancelled(true);
+            return;
+        }
+        if (containsFfaItem(event.getCurrentItem(), event.getCursor())
+                && event.getView().getTopInventory() != player.getInventory()) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (containsFfaItem(event.getOldCursor()) && event.getView().getTopInventory() != event.getWhoClicked().getInventory()) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInventoryMove(InventoryMoveItemEvent event) {
+        if (ffa.isFfaItem(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInventoryPickup(InventoryPickupItemEvent event) {
+        ffa.handleFieldItemInventoryPickup(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onCraft(CraftItemEvent event) {
+        for (ItemStack item : event.getInventory().getMatrix()) {
+            if (ffa.isFfaItem(item)) {
+                event.setCancelled(true);
+                return;
+            }
         }
     }
 
@@ -107,6 +161,11 @@ final class FfaListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent event) {
+        Location deathLeaveLocation = ffa.handleDeathLeaveRespawn(event.getPlayer());
+        if (deathLeaveLocation != null) {
+            event.setRespawnLocation(deathLeaveLocation);
+            return;
+        }
         if (!ffa.isPlaying(event.getPlayer())) {
             return;
         }
@@ -119,6 +178,13 @@ final class FfaListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
+        if (ffa.isFfaItem(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            if (!ffa.isPlaying(event.getPlayer())) {
+                event.getItemDrop().remove();
+            }
+            return;
+        }
         if (ffa.isPlaying(event.getPlayer()) && !ffa.restrictionAllows("drop-items")) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§cFFA中はアイテムを捨てられません。");
@@ -127,6 +193,14 @@ final class FfaListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onPickup(EntityPickupItemEvent event) {
+        if (ffa.handleFieldItemPickup(event)) {
+            return;
+        }
+        if (ffa.isFfaItem(event.getItem().getItemStack())) {
+            event.setCancelled(true);
+            event.getItem().remove();
+            return;
+        }
         if (event.getEntity() instanceof Player player
                 && ffa.isPlaying(player)
                 && !ffa.restrictionAllows("pickup-items")) {
@@ -147,6 +221,65 @@ final class FfaListener implements Listener {
         if (ffa.isPlaying(event.getPlayer()) && !ffa.restrictionAllows("block-place")) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§cFFA中はブロックを設置できません。");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onInteract(PlayerInteractEvent event) {
+        if (ffa.handlePotionUse(event)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onItemFrameUse(PlayerInteractEntityEvent event) {
+        if (!(event.getRightClicked() instanceof ItemFrame)) {
+            return;
+        }
+        ItemStack item = event.getPlayer().getInventory().getItem(event.getHand());
+        if (ffa.isFfaItem(item)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§cFFAアイテムは額縁に設置できません。");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onShoot(EntityShootBowEvent event) {
+        ffa.handleBowShoot(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        ffa.handleProjectileLaunch(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onProjectileHit(ProjectileHitEvent event) {
+        ffa.handleProjectileHit(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onPotionSplash(PotionSplashEvent event) {
+        ffa.handlePotionSplash(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onEntityDeath(EntityDeathEvent event) {
+        ffa.handleEntityDeath(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onEntityTarget(EntityTargetLivingEntityEvent event) {
+        ffa.handleEntityTarget(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onPickupArrow(PlayerPickupArrowEvent event) {
+        if (ffa.handleArrowPickup(event)) {
+            return;
+        }
+        if (ffa.isPlaying(event.getPlayer())) {
+            event.setCancelled(true);
         }
     }
 
@@ -186,12 +319,28 @@ final class FfaListener implements Listener {
         if (damager instanceof Player player) {
             return player;
         }
+        Player owner = ffa.ownerOfFfaEntity(damager);
+        if (owner != null) {
+            return owner;
+        }
         if (damager instanceof Projectile projectile) {
             ProjectileSource source = projectile.getShooter();
             if (source instanceof Player player) {
                 return player;
             }
+            if (source instanceof Entity entity) {
+                return ffa.ownerOfFfaEntity(entity);
+            }
         }
         return null;
+    }
+
+    private boolean containsFfaItem(ItemStack... items) {
+        for (ItemStack item : items) {
+            if (ffa.isFfaItem(item)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
