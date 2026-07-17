@@ -44,11 +44,10 @@ Normal block breaking, explosions, pistons, liquids, and burning do not break sh
 MinerVa stores server-side gameplay data in the plugin data folder. Treat these files as private server data and do not publish them.
 
 - `data.yml`: player UUIDs, names, MP balances, status/progression data, friend relationships, friend requests, and limited offline friend messages.
-- `auth.yml`: Discord-auth verification state, temporary auth codes, player UUIDs, and player names.
 - `proposals.yml`: pending/reviewed proposal metadata, which may include Discord user IDs when imported by external tooling.
 - `structures.yml`, `text-displays.yml`, `ffa-stats.yml`: admin-created server content, locations, generated-structure records, and FFA stats.
 
-Temporary Discord auth codes expire according to `discord-auth.expire-minutes`. To remove a player's stored data, delete that player's UUID section from the relevant YAML files while the server is stopped, or use the available admin reset commands where applicable.
+To remove a player's stored data, delete that player's UUID section from the relevant YAML files while the server is stopped, or use the available admin reset commands where applicable.
 
 ## Legal Notes
 

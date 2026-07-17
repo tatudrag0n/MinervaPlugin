@@ -56,6 +56,7 @@ import org.bukkit.event.player.PlayerAdvancementDoneEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.EquipmentSlot;
@@ -250,8 +251,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private final UtilityItemsFeature utilityItemsFeature = new UtilityItemsFeature(this);
     private final TextDisplayFeature textDisplayFeature = new TextDisplayFeature(this);
     private final AuctionFeature auctionFeature = new AuctionFeature(this, economyPriceTable);
-    private final DiscordAuthManager discordAuthManager = new DiscordAuthManager(this);
-    private final DiscordAuthListener discordAuthListener = new DiscordAuthListener(discordAuthManager);
     private final StructureManager structureManager = new StructureManager(this);
     private final ProposalManager proposalManager = new ProposalManager(this);
     private final QuestProgressListener questProgressListener = new QuestProgressListener(this, questService);
@@ -278,7 +277,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private final Map<UUID, Map<String, KillRewardWindow>> mobRewardWindows = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastJumpPadUse = new ConcurrentHashMap<>();
     private final Map<UUID, Long> jumpPadFallProtectionUntil = new ConcurrentHashMap<>();
-    // Auto-shutdown: schedule a server stop when no players are online
+    // Auto-shutdown: schedule a VM stop when no players are online
     private BukkitTask scheduledShutdownTask;
     private final Object shutdownLock = new Object();
 
@@ -315,7 +314,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         runStartupStep("apply economy price table", this::applyEconomyPriceTable);
         loadData();
         runStartupStep("sync shelf shop displays", this::syncShelfShopDisplays);
-        runStartupStep("load Discord auth", discordAuthManager::load);
         runStartupStep("load structures", structureManager::load);
         runStartupStep("load proposals", proposalManager::load);
         runStartupStep("load text displays", textDisplayFeature::load);
@@ -325,7 +323,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         runStartupStep("register protected interaction events", () -> Bukkit.getPluginManager().registerEvents(protectedInteractionListener, this));
         runStartupStep("register quest progress events", () -> Bukkit.getPluginManager().registerEvents(questProgressListener, this));
         runStartupStep("register auction events", () -> Bukkit.getPluginManager().registerEvents(auctionFeature, this));
-        runStartupStep("register Discord auth events", () -> Bukkit.getPluginManager().registerEvents(discordAuthListener, this));
         runStartupStep("register structure events", () -> Bukkit.getPluginManager().registerEvents(structureManager, this));
         runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(ffaListener, this));
         runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(textDisplayFeature, this));
@@ -344,7 +341,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         Bukkit.getScheduler().runTaskTimer(this, this::grantPlaytimeRewards, 20L * 60L, 20L * 60L);
         Bukkit.getScheduler().runTaskTimer(this, this::tickMerchants, 20L * 60L, 20L * 60L);
         Bukkit.getScheduler().runTaskTimer(this, this::tickShelfShopActionBars, 10L, 10L);
-        Bukkit.getScheduler().runTaskTimer(this, discordAuthManager::tickExternalUpdates, 20L * 30L, 20L * 30L);
         getLogger().info("Minerva has been enabled.");
     }
 
@@ -369,6 +365,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @Override
     public void onDisable() {
+        cancelScheduledAutoShutdown("the plugin is disabling");
         try {
             ffaManager.shutdown();
         } catch (Throwable e) {
@@ -387,40 +384,197 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if (!getConfig().getBoolean("auto-shutdown.enabled", false)) return;
-        synchronized (shutdownLock) {
-            if (scheduledShutdownTask != null) {
-                scheduledShutdownTask.cancel();
-                scheduledShutdownTask = null;
-                getLogger().info("Cancelled scheduled auto-shutdown because a player joined.");
-            }
-        }
+        if (!getConfig().getBoolean("auto-shutdown.enabled", true)) return;
+        cancelScheduledAutoShutdown("a player joined");
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        if (!getConfig().getBoolean("auto-shutdown.enabled", false)) return;
-        // If no players remain, schedule a delayed shutdown
-        if (!Bukkit.getOnlinePlayers().iterator().hasNext()) {
-            int delay = Math.max(1, getConfig().getInt("auto-shutdown.delay-seconds", 60));
-            synchronized (shutdownLock) {
-                if (scheduledShutdownTask != null) {
-                    scheduledShutdownTask.cancel();
-                }
-                scheduledShutdownTask = Bukkit.getScheduler().runTaskLater(this, () -> {
-                    synchronized (shutdownLock) {
-                        if (!Bukkit.getOnlinePlayers().iterator().hasNext()) {
-                            getLogger().info("No players online for " + delay + "s; shutting down server.");
-                            Bukkit.shutdown();
-                        } else {
-                            getLogger().info("Players returned before auto-shutdown; aborting.");
-                        }
-                        scheduledShutdownTask = null;
+        if (!getConfig().getBoolean("auto-shutdown.enabled", true)) return;
+        // PlayerQuitEvent may still include the quitting player in getOnlinePlayers().
+        long remaining = Bukkit.getOnlinePlayers().stream()
+                .filter(player -> !player.getUniqueId().equals(event.getPlayer().getUniqueId()))
+                .count();
+        if (remaining == 0) {
+            scheduleAutoShutdown();
+        }
+    }
+
+    private void scheduleAutoShutdown() {
+        int delay = Math.max(1, getConfig().getInt("auto-shutdown.delay-seconds", 600));
+        synchronized (shutdownLock) {
+            if (scheduledShutdownTask != null) {
+                scheduledShutdownTask.cancel();
+            }
+            scheduledShutdownTask = Bukkit.getScheduler().runTaskLater(this, () -> {
+                synchronized (shutdownLock) {
+                    if (Bukkit.getOnlinePlayers().isEmpty()) {
+                        performAutoShutdown(delay);
+                    } else {
+                        getLogger().info("Players returned before auto-shutdown; aborting.");
                     }
-                }, 20L * delay);
-                getLogger().info("Scheduled auto-shutdown in " + delay + " seconds.");
+                    scheduledShutdownTask = null;
+                }
+            }, 20L * delay);
+            getLogger().info("Scheduled auto-shutdown in " + delay + " seconds.");
+        }
+    }
+
+    private void cancelScheduledAutoShutdown(String reason) {
+        synchronized (shutdownLock) {
+            if (scheduledShutdownTask != null) {
+                scheduledShutdownTask.cancel();
+                scheduledShutdownTask = null;
+                getLogger().info("Cancelled scheduled auto-shutdown because " + reason + ".");
             }
         }
+    }
+
+    /** Idle timeout: stop the host VM (GCP gcloud by default, or a custom command). */
+    private void performAutoShutdown(int delaySeconds) {
+        getLogger().info("No players online for " + delaySeconds + "s; stopping host VM.");
+        try {
+            saveData();
+            Bukkit.savePlayers();
+            for (World world : Bukkit.getWorlds()) {
+                world.save();
+            }
+        } catch (Throwable e) {
+            getLogger().warning("Failed to save before VM stop: " + e.getMessage());
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                String command = resolveVmStopCommand();
+                getLogger().info("Executing VM stop command: " + command);
+                int exitCode = runShellCommand(command);
+                getLogger().info("VM stop command exited with code " + exitCode + ".");
+                if (exitCode != 0) {
+                    getLogger().severe("VM stop command failed with exit code " + exitCode + ".");
+                }
+            } catch (Exception e) {
+                getLogger().severe("Failed to stop VM: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    /**
+     * Builds the shell command used to stop the VM.
+     * provider=gcloud (default): gcloud compute instances stop, with GCE metadata auto-detect.
+     * provider=command: uses auto-shutdown.vm-stop-command as-is.
+     */
+    private String resolveVmStopCommand() throws IOException {
+        String provider = getConfig().getString("auto-shutdown.provider", "gcloud");
+        if (provider != null && provider.equalsIgnoreCase("command")) {
+            String command = getConfig().getString("auto-shutdown.vm-stop-command", "sudo shutdown -h now");
+            if (command == null || command.isBlank()) {
+                throw new IOException("auto-shutdown.vm-stop-command is empty");
+            }
+            return command.trim();
+        }
+
+        String instance = firstNonBlank(
+                getConfig().getString("auto-shutdown.gcloud.instance"),
+                readGceMetadata("instance/name"));
+        String zonePath = firstNonBlank(
+                getConfig().getString("auto-shutdown.gcloud.zone"),
+                readGceMetadata("instance/zone"));
+        String zone = zoneFromMetadataPath(zonePath);
+        String project = firstNonBlank(
+                getConfig().getString("auto-shutdown.gcloud.project"),
+                readGceMetadata("project/project-id"));
+
+        if (instance == null || instance.isBlank()) {
+            throw new IOException("Could not resolve GCE instance name (set auto-shutdown.gcloud.instance)");
+        }
+        if (zone == null || zone.isBlank()) {
+            throw new IOException("Could not resolve GCE zone (set auto-shutdown.gcloud.zone)");
+        }
+
+        StringBuilder command = new StringBuilder("gcloud compute instances stop ")
+                .append(shellQuote(instance.trim()))
+                .append(" --zone=").append(shellQuote(zone.trim()));
+        if (project != null && !project.isBlank()) {
+            command.append(" --project=").append(shellQuote(project.trim()));
+        }
+        command.append(" --quiet");
+        return command.toString();
+    }
+
+    private static String zoneFromMetadataPath(String zonePathOrName) {
+        if (zonePathOrName == null || zonePathOrName.isBlank()) {
+            return null;
+        }
+        String value = zonePathOrName.trim();
+        int slash = value.lastIndexOf('/');
+        return slash >= 0 ? value.substring(slash + 1) : value;
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Reads a path from the GCE metadata server.
+     * Example path: instance/name, instance/zone, project/project-id
+     */
+    private static String readGceMetadata(String path) {
+        try {
+            java.net.URI uri = java.net.URI.create(
+                    "http://metadata.google.internal/computeMetadata/v1/" + path);
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder(uri)
+                    .timeout(java.time.Duration.ofSeconds(3))
+                    .header("Metadata-Flavor", "Google")
+                    .GET()
+                    .build();
+            java.net.http.HttpResponse<String> response = java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(3))
+                    .build()
+                    .send(request, java.net.http.HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() != 200) {
+                return null;
+            }
+            String body = response.body();
+            return body == null ? null : body.trim();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private int runShellCommand(String command) throws IOException, InterruptedException {
+        ProcessBuilder builder = newProcessBuilder(command);
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+        String output;
+        try (var reader = new java.io.BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            output = reader.lines().collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if (!output.isBlank()) {
+            getLogger().info("VM stop command output:\n" + output);
+        }
+        return process.waitFor();
+    }
+
+    private static ProcessBuilder newProcessBuilder(String command) {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (os.contains("win")) {
+            return new ProcessBuilder("cmd.exe", "/c", command);
+        }
+        return new ProcessBuilder("sh", "-c", command);
     }
 
     private void loadData() {
@@ -4221,8 +4375,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         for (String key : section.getKeys(false)) {
             String path = sectionPath + "." + key;
-            if ("world-rules.spawn".equals(sectionPath)
-                    && "survival".equalsIgnoreCase(getConfig().getString(path + ".world"))) {
+            // Keep survival at the fixed Multiverse spawn (0, 101, 0), not origin.
+            if ("survival".equalsIgnoreCase(getConfig().getString(path + ".world"))) {
                 continue;
             }
             setLocationCoordinatesToOrigin(path);
@@ -4248,12 +4402,23 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     }
 
     private void configureSurvivalSpawnLocation() {
+        // Multiverse-Core world "survival": fixed spawn + teleporter destination at 0,101,0
         getConfig().set("world-rules.spawn.survival.world", "survival");
         getConfig().set("world-rules.spawn.survival.x", 0.0D);
         getConfig().set("world-rules.spawn.survival.y", 101.0D);
         getConfig().set("world-rules.spawn.survival.z", 0.0D);
         getConfig().set("world-rules.spawn.survival.yaw", 0.0D);
         getConfig().set("world-rules.spawn.survival.pitch", 0.0D);
+
+        getConfig().set("servers.survival.world", "survival");
+        getConfig().set("servers.survival.x", 0.0D);
+        getConfig().set("servers.survival.y", 101.0D);
+        getConfig().set("servers.survival.z", 0.0D);
+        getConfig().set("servers.survival.yaw", 0.0D);
+        getConfig().set("servers.survival.pitch", 0.0D);
+        setIfMissing("servers.survival.icon", "grass_block");
+
+        applyFixedSpawnLocation("survival", 0.0D, 101.0D, 0.0D);
         saveConfig();
     }
 
@@ -4878,10 +5043,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private boolean handleMinervaCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|auth|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
+            sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
             return true;
         }
-        if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "auth", "structure", "proposal").contains(args[0].toLowerCase(Locale.ROOT))) {
+        if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal").contains(args[0].toLowerCase(Locale.ROOT))) {
             sender.sendMessage("Player only.");
             return true;
         }
@@ -4895,7 +5060,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             case "tp" -> handleWorldTpCommand((Player) sender, args);
             case "text" -> textDisplayFeature.handleCommand(sender, args);
             case "ffa" -> ffaManager.handleCommand(sender, args);
-            case "auth" -> discordAuthManager.handleCommand(sender, args);
             case "structure" -> structureManager.handleCommand(sender, args);
             case "proposal" -> proposalManager.handleCommand(sender, args);
             case "gamerules" -> handleGamerulesCommand(sender, args);
@@ -5049,7 +5213,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 sender.sendMessage(ChatColor.GREEN + "サーバー移動先を削除しました: " + args[1]);
             }
             case "warning" -> handleWarningCommand(sender, args);
-            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|auth|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
+            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
         }
         return true;
     }
@@ -5136,7 +5300,6 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         loadShopPrices();
         applyEconomyPriceTable();
         syncShelfShopDisplays();
-        discordAuthManager.reload();
         structureManager.load();
         proposalManager.load();
         ffaManager.load();
@@ -5563,16 +5726,13 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1 && isMinervaRootCommand(command)) {
-            return List.of("check", "list", "tp", "text", "ffa", "auth", "structure", "proposal", "gamerules", "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic", "quest", "mp", "regen", "chunk", "protect", "status", "tutorial", "shopwand", "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning");
+            return List.of("check", "list", "tp", "text", "ffa", "structure", "proposal", "gamerules", "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic", "quest", "mp", "regen", "chunk", "protect", "status", "tutorial", "shopwand", "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning");
         }
         if (args.length >= 2 && isMinervaRootCommand(command) && "text".equalsIgnoreCase(args[0])) {
             return textDisplayFeature.tabComplete(args);
         }
         if (args.length >= 2 && isMinervaRootCommand(command) && "ffa".equalsIgnoreCase(args[0])) {
             return ffaManager.tabComplete(args, sender);
-        }
-        if (args.length >= 2 && isMinervaRootCommand(command) && "auth".equalsIgnoreCase(args[0])) {
-            return discordAuthManager.tabComplete(args, sender);
         }
         if (args.length >= 2 && isMinervaRootCommand(command) && "structure".equalsIgnoreCase(args[0])) {
             return structureManager.tabComplete(args);

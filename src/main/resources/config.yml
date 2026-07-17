@@ -44,28 +44,6 @@ shopwand:
     mode: "fixed-on-create"
     reroll-minutes: 60
 
-discord-auth:
-  enabled: true
-  require-before-join: true
-  code-length: 6
-  expire-minutes: 10
-  code-characters: "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-  discord-command: "/verify code:{code}"
-  discord-invite: "https://discord.gg/ここに招待URL"
-  allow-join-when-auth-system-error: false
-  restrict-unverified: true
-  restrictions:
-    block-break: true
-    block-place: true
-    chat: false
-    command: true
-    movement: false
-  allowed-commands:
-    - "/mva auth"
-    - "/mva auth code"
-    - "/minerva auth"
-    - "/minerva auth code"
-
 structures:
   enabled: true
   worldedit-softdepend: true
@@ -743,6 +721,15 @@ minigame-unlocks:
     required-emeralds: 10000
 
 auto-shutdown:
-  enabled: false
-  # Delay in seconds after the last player leaves before shutting down the server
-  delay-seconds: 60
+  enabled: true
+  # Delay in seconds after the last player leaves before stopping the host VM (600 = 10 minutes)
+  delay-seconds: 600
+  # provider: gcloud (default) or command
+  provider: gcloud
+  # Used when provider=command
+  vm-stop-command: "sudo shutdown -h now"
+  gcloud:
+    # Optional overrides; empty values are auto-detected from GCE metadata
+    instance: ""
+    zone: ""
+    project: ""

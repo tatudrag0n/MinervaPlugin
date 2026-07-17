@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
+
 final class AuctionFeature implements Listener {
     private final Minerva plugin;
     private final EconomyPriceTable priceTable;
