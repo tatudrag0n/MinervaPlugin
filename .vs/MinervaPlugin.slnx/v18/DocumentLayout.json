@@ -1,0 +1,113 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\AuctionFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main\\java\\org\\server\\minerva\\AuctionFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\CompassFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main\\java\\org\\server\\minerva\\CompassFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "FfaFieldItemManager.java",
+              "DocumentMoniker": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java",
+              "RelativeDocumentMoniker": "src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java",
+              "ToolTip": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java",
+              "RelativeToolTip": "src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAgAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABwSURBVDhPY\u002BSo\u002BfWfgUzwo5mVgQFqAFmYo\u002BbXfyZ0U0kFKAb8//8fjtHFcQEUAxgZGVFoYgB1vYANSEhIoAuhAIwwQKefP3/O0NDQgKwMFQyuaCQHUNcA5ISELUFhAxgJCR0TAhR7gZGS7MzAwMAAAP5rVNveQJqeAAAAAElFTkSuQmCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "WhenOpened": "2026-07-17T13:43:58.343Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DiscordAuthManager.java",
+              "DocumentMoniker": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java",
+              "RelativeDocumentMoniker": "src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java",
+              "ToolTip": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java",
+              "RelativeToolTip": "src\\main\\java\\org\\server\\minerva\\DiscordAuthManager.java",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABwSURBVDhPY\u002BSo\u002BfWfgUzwo5mVgQFqAFmYo\u002BbXfyZ0U0kFKAb8//8fjtHFcQEUAxgZGVFoYgB1vYANSEhIoAuhAIwwQKefP3/O0NDQgKwMFQyuaCQHUNcA5ISELUFhAxgJCR0TAhR7gZGS7MzAwMAAAP5rVNveQJqeAAAAAElFTkSuQmCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "WhenOpened": "2026-07-17T13:43:57.336Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "CompassFeature.java",
+              "DocumentMoniker": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\CompassFeature.java",
+              "RelativeDocumentMoniker": "src\\main\\java\\org\\server\\minerva\\CompassFeature.java",
+              "ToolTip": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\CompassFeature.java",
+              "RelativeToolTip": "src\\main\\java\\org\\server\\minerva\\CompassFeature.java",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABwSURBVDhPY\u002BSo\u002BfWfgUzwo5mVgQFqAFmYo\u002BbXfyZ0U0kFKAb8//8fjtHFcQEUAxgZGVFoYgB1vYANSEhIoAuhAIwwQKefP3/O0NDQgKwMFQyuaCQHUNcA5ISELUFhAxgJCR0TAhR7gZGS7MzAwMAAAP5rVNveQJqeAAAAAElFTkSuQmCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "WhenOpened": "2026-07-17T13:43:53.771Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ChunkProtectionFeature.java",
+              "DocumentMoniker": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java",
+              "RelativeDocumentMoniker": "src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java",
+              "ToolTip": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java",
+              "RelativeToolTip": "src\\main\\java\\org\\server\\minerva\\ChunkProtectionFeature.java",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABwSURBVDhPY\u002BSo\u002BfWfgUzwo5mVgQFqAFmYo\u002BbXfyZ0U0kFKAb8//8fjtHFcQEUAxgZGVFoYgB1vYANSEhIoAuhAIwwQKefP3/O0NDQgKwMFQyuaCQHUNcA5ISELUFhAxgJCR0TAhR7gZGS7MzAwMAAAP5rVNveQJqeAAAAAElFTkSuQmCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "WhenOpened": "2026-07-17T13:43:52.075Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "AuctionFeature.java",
+              "DocumentMoniker": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\AuctionFeature.java",
+              "RelativeDocumentMoniker": "src\\main\\java\\org\\server\\minerva\\AuctionFeature.java",
+              "ToolTip": "C:\\Users\\tatud\\IdeaProjects\\MinervaPlugin\\src\\main\\java\\org\\server\\minerva\\AuctionFeature.java",
+              "RelativeToolTip": "src\\main\\java\\org\\server\\minerva\\AuctionFeature.java",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABwSURBVDhPY\u002BSo\u002BfWfgUzwo5mVgQFqAFmYo\u002BbXfyZ0U0kFKAb8//8fjtHFcQEUAxgZGVFoYgB1vYANSEhIoAuhAIwwQKefP3/O0NDQgKwMFQyuaCQHUNcA5ISELUFhAxgJCR0TAhR7gZGS7MzAwMAAAP5rVNveQJqeAAAAAElFTkSuQmCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "WhenOpened": "2026-07-17T13:43:49.435Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

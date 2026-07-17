@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\common",
+    "\\src",
+    "\\src\\main",
+    "\\src\\main\\java",
+    "\\src\\main\\java\\com\\minerva\\common",
+    "\\src\\main\\java\\com\\minerva\\common\\storage",
+    "\\src\\main\\java\\org",
+    "\\src\\main\\java\\org\\server",
+    "\\src\\main\\java\\org\\server\\minerva"
+  ],
+  "SelectedNode": "\\src\\main\\java\\org\\server\\minerva\\FfaFieldItemManager.java",
+  "PreviewInSolutionExplorer": false
+}
