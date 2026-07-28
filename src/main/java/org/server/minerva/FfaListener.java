@@ -105,11 +105,6 @@ final class FfaListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            // フレンドにはダメージを与えない
-            if (plugin.areFriends(bugOwner.getUniqueId(), victim.getUniqueId())) {
-                event.setCancelled(true);
-                return;
-            }
             event.setCancelled(false);
             return;
         }
@@ -122,11 +117,6 @@ final class FfaListener implements Listener {
             return;
         }
         if (victimInFfa && attackerInFfa) {
-            if (plugin.areFriends(victim.getUniqueId(), attacker.getUniqueId())) {
-                event.setCancelled(true);
-                attacker.sendMessage("§cフレンドには攻撃できません。");
-                return;
-            }
             event.setCancelled(false);
             ffa.adjustFfaDamage(event, attacker, victim);
             return;
