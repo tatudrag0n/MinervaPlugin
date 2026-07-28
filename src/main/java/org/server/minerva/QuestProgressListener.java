@@ -146,7 +146,7 @@ final class QuestProgressListener implements Listener {
             return;
         }
         Map<UUID, DamageParticipation> participation = damageByEntity.remove(entity.getUniqueId());
-        if (isNecromancerSummon(entity)) {
+        if (isNecromancerSummon(entity) || isBugSilverfish(entity)) {
             return;
         }
         Player killer = entity.getKiller();
@@ -161,6 +161,11 @@ final class QuestProgressListener implements Listener {
     private boolean isNecromancerSummon(LivingEntity entity) {
         String kind = entity.getPersistentDataContainer().get(ffaEntityKindKey, PersistentDataType.STRING);
         return "summon".equals(kind);
+    }
+
+    private boolean isBugSilverfish(LivingEntity entity) {
+        String kind = entity.getPersistentDataContainer().get(ffaEntityKindKey, PersistentDataType.STRING);
+        return "bug_silverfish".equals(kind);
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)

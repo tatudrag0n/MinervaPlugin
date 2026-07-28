@@ -57,6 +57,18 @@ final class UtilityItemsFeature implements Listener {
     }
 
     ItemStack createShopWand(ShopWandType type) {
+        if (type.isSlotWand()) {
+            SlotMachineManager.Difficulty difficulty = type.getSlotDifficulty();
+            String diffName = difficulty != null ? difficulty.name() : "";
+            return createMinervaItem(Material.BLAZE_ROD, "slot_wand", ChatColor.GOLD + "スロットワンド [" + diffName + "]",
+                    List.of(ChatColor.GRAY + "難易度: " + getDifficultyDisplayName(difficulty),
+                            ChatColor.GRAY + "右クリック: 棚をスロットマシン化",
+                            ChatColor.GRAY + "ウォレットを持って棚を右クリックで回転"), meta -> {
+                        PersistentDataContainer container = meta.getPersistentDataContainer();
+                        container.set(shopWandTypeKey, PersistentDataType.STRING, type.key());
+                    });
+        }
+        
         return createMinervaItem(Material.BLAZE_ROD, "shop_wand", ChatColor.GOLD + "ショップワンド",
                 List.of(ChatColor.GRAY + "種類: " + type.key(),
                         ChatColor.GRAY + "右クリック: 対応ブロックをショップ化",
@@ -64,6 +76,17 @@ final class UtilityItemsFeature implements Listener {
                     PersistentDataContainer container = meta.getPersistentDataContainer();
                     container.set(shopWandTypeKey, PersistentDataType.STRING, type.key());
                 });
+    }
+    
+    private String getDifficultyDisplayName(SlotMachineManager.Difficulty difficulty) {
+        if (difficulty == null) return "不明";
+        switch (difficulty) {
+            case EASY: return ChatColor.GREEN + "イージー";
+            case NORMAL: return ChatColor.YELLOW + "ノーマル";
+            case HARD: return ChatColor.RED + "ハード";
+            case EXPERT: return ChatColor.DARK_RED + "" + ChatColor.BOLD + "エキスパート";
+            default: return "不明";
+        }
     }
 
     ItemStack createJumpPadWand(int verticalPower, int horizontalPower) {
