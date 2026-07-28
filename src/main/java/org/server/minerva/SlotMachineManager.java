@@ -307,7 +307,7 @@ public class SlotMachineManager implements Listener {
 
         if (isRedstone) {
             session.getPlayer().sendMessage("§e再抽選！もう一度回せます！");
-            playEffect(session.getPlayer(), Particle.SPELL_INSTANT, 10);
+            playEffect(session.getPlayer(), Particle.INSTANT_EFFECT, 10);
         } else if (isWin) {
             handleWin(session, result);
         } else {
@@ -405,7 +405,7 @@ public class SlotMachineManager implements Listener {
         World world = player.getWorld();
         
         int particleCount = symbol.getValue() * 5;
-        Particle particle = Particle.VILLAGER_HAPPY;
+        Particle particle = Particle.HAPPY_VILLAGER;
         Sound sound = Sound.ENTITY_PLAYER_LEVELUP;
         float pitch = 1.0f;
         
@@ -443,7 +443,7 @@ public class SlotMachineManager implements Listener {
 
     private void playLossEffect(Player player) {
         Location loc = player.getLocation();
-        player.getWorld().spawnParticle(Particle.SMOKE_NORMAL, loc.add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0);
+        player.getWorld().spawnParticle(Particle.SMOKE, loc.add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0);
         player.getWorld().playSound(loc, Sound.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, 1.0f, 0.5f);
     }
 
