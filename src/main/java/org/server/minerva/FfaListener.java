@@ -313,6 +313,10 @@ final class FfaListener implements Listener {
         if (!ffa.isPlaying(event.getPlayer())) {
             return;
         }
+        // OPはFFA中も通常どおりコマンドを実行できる。
+        if (event.getPlayer().isOp()) {
+            return;
+        }
         if (!ffa.commandAllowed(event.getMessage())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§cFFA中はこのコマンドを使用できません。");
