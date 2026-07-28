@@ -259,6 +259,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private final ProtectedInteractionListener protectedInteractionListener = new ProtectedInteractionListener(this, protectionService);
     private final FfaManager ffaManager = new FfaManager(this);
     private final FfaListener ffaListener = new FfaListener(this, ffaManager);
+    private final SlotMachineManager slotMachineManager = new SlotMachineManager(this);
     private final Random random = new Random();
     private final Map<String, Integer> shopSalePrices = new HashMap<>();
     private final Map<String, Integer> shopBuyPrices = new HashMap<>();
@@ -331,6 +332,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         runStartupStep("register FFA events", () -> Bukkit.getPluginManager().registerEvents(ffaListener, this));
         runStartupStep("register text display events", () -> Bukkit.getPluginManager().registerEvents(textDisplayFeature, this));
         runStartupStep("register server portal events", () -> Bukkit.getPluginManager().registerEvents(serverPortalFeature, this));
+        runStartupStep("register slot machine events", () -> Bukkit.getPluginManager().registerEvents(slotMachineManager, this));
         runStartupStep("register compass events", () -> Bukkit.getPluginManager().registerEvents(compassFeature, this));
         runStartupStep("register utility item events", () -> Bukkit.getPluginManager().registerEvents(utilityItemsFeature, this));
         registerCommand("minerva");
@@ -934,6 +936,13 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         Block block = event.getClickedBlock();
         ItemStack wand = event.getItem();
         ShopWandType type = shopWandType(wand);
+        
+        // スロットワンドの処理
+        if (type.isSlotWand()) {
+            handleSlotWandClick(event, player, block, type);
+            return;
+        }
+        
         if (type == ShopWandType.FRAME) {
             player.sendMessage(ChatColor.RED + "額縁ショップは未実装です。額縁は既存のオークション機能を使用してください。");
             event.setCancelled(true);
@@ -980,6 +989,42 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             } else {
                 player.sendMessage(ChatColor.YELLOW + "この棚はショップ化されていません。");
             }
+            event.setCancelled(true);
+        }
+    }
+    
+    private void handleSlotWandClick(PlayerInteractEvent event, Player player, Block block, ShopWandType type) {
+        if (block == null || !isShelf(block.getType())) {
+            player.sendMessage(ChatColor.RED + "棚をクリックしてください。");
+            event.setCancelled(true);
+            return;
+        }
+        
+        if (event.getAction().isRightClick()) {
+            SlotMachineManager.Difficulty difficulty = type.getSlotDifficulty();
+            if (difficulty == null) {
+                player.sendMessage(ChatColor.RED + "無効なスロットワンドです。");
+                event.setCancelled(true);
+                return;
+            }
+            
+            // スロットセッションを作成
+            SlotMachineManager manager = slotMachineManager;
+            if (manager == null) {
+                player.sendMessage(ChatColor.RED + "スロットマシンシステムが初期化されていません。");
+                event.setCancelled(true);
+                return;
+            }
+            
+            SlotMachineManager.SlotSession session = manager.createSession(player, block, difficulty);
+            if (session == null) {
+                player.sendMessage(ChatColor.RED + "スロットマシンの初期化に失敗しました。");
+                event.setCancelled(true);
+                return;
+            }
+            
+            player.sendMessage(ChatColor.AQUA + "棚をスロットマシン化しました！");
+            player.sendMessage(ChatColor.GRAY + "ウォレット（バンドル）を持って右クリックで回転します。");
             event.setCancelled(true);
         }
     }
@@ -3390,6 +3435,19 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 player.sendMessage(ChatColor.GOLD + "称号を獲得しました: " + ChatColor.YELLOW + title));
         player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
     }
+
+    public void unlockTitle(Player player, String title) {
+        ConfigurationSection section = getPlayerSection(player.getUniqueId());
+        Set<String> notified = new HashSet<>(section.getStringList("unlocked-titles"));
+        if (!notified.contains(title)) {
+            notified.add(title);
+            section.set("unlocked-titles", new ArrayList<>(notified));
+            saveData();
+            player.sendMessage(ChatColor.GOLD + "称号を獲得しました：" + ChatColor.YELLOW + title);
+            player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.2f);
+        }
+    }
+
 
     private void fillKillsTab(Player player, Inventory inventory, int page) {
         Set<String> killed = new HashSet<>(getPlayerSection(player.getUniqueId()).getStringList("killed-mobs"));

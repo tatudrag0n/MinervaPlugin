@@ -1,8 +1,44 @@
-target/
+```java
+# Compiled Java files
 *.class
+*.jar
+*.war
+*.ear
 
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/shelf/
+# Build directories
+target/
+build/
+dist/
 
+# Dependencies
+lib/
+libs/
+
+# IDE files
+.idea/
 *.iml
+*.ipr
+*.iws
+.vscode/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Coverage reports
+coverage/
+htmlcov/
+
+# Original rules preserved from existing .gitignore
+*.log
+```

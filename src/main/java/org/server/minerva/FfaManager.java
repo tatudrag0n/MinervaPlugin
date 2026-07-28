@@ -949,6 +949,8 @@ final class FfaManager {
             if (killer != null && (owner == null || !owner.equals(killer.getUniqueId())) && ThreadLocalRandom.current().nextInt(100) < 5) {
                 killer.addPotionEffect(new PotionEffect(PotionEffectType.INFESTED, 20 * 60, 0, false, false, true));
             }
+            // バグマニアのシルバーフィッシュには討伐報酬を適用しない
+            return;
         }
     }
 
