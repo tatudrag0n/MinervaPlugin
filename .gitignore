@@ -1,44 +1,54 @@
-```java
-# Compiled Java files
+# Compiled and build artifacts
 *.class
-*.jar
-*.war
-*.ear
-
-# Build directories
-target/
+*.o
+*.obj
+*.out
 build/
-dist/
+target/
 
 # Dependencies
 lib/
 libs/
+dependency/
+dependencies/
 
-# IDE files
-.idea/
-*.iml
-*.ipr
-*.iws
-.vscode/
-
-# Logs
+# Logs and temp files
 *.log
-
-# Temporary files
 *.tmp
-*.temp
-.DS_Store
-Thumbs.db
+*.swp
+*.swo
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Coverage reports
-coverage/
-htmlcov/
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Original rules preserved from existing .gitignore
-*.log
-```
+# Archives
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
