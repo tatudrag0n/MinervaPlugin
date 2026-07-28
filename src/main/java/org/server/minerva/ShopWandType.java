@@ -6,7 +6,11 @@ import java.util.Locale;
 enum ShopWandType {
     SHELF("shelf"),
     BARREL("barrel"),
-    FRAME("frame");
+    FRAME("frame"),
+    SLOT_EASY("slot_easy"),
+    SLOT_NORMAL("slot_normal"),
+    SLOT_HARD("slot_hard"),
+    SLOT_EXPERT("slot_expert");
 
     private final String key;
 
@@ -27,5 +31,19 @@ enum ShopWandType {
                 .filter(type -> type.key.equals(normalized))
                 .findFirst()
                 .orElse(null);
+    }
+    
+    boolean isSlotWand() {
+        return this == SLOT_EASY || this == SLOT_NORMAL || this == SLOT_HARD || this == SLOT_EXPERT;
+    }
+    
+    SlotMachineManager.Difficulty getSlotDifficulty() {
+        switch (this) {
+            case SLOT_EASY: return SlotMachineManager.Difficulty.EASY;
+            case SLOT_NORMAL: return SlotMachineManager.Difficulty.NORMAL;
+            case SLOT_HARD: return SlotMachineManager.Difficulty.HARD;
+            case SLOT_EXPERT: return SlotMachineManager.Difficulty.EXPERT;
+            default: return null;
+        }
     }
 }
