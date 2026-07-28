@@ -929,6 +929,17 @@ final class FfaManager {
         return player != null && isPlaying(player) ? player : null;
     }
 
+    UUID bugOwnerOf(Entity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return bugOwners.get(entity.getUniqueId());
+    }
+
+    NamespacedKey entityKindKey() {
+        return entityKindKey;
+    }
+
     void handleEntityDeath(EntityDeathEvent event) {
         Entity entity = event.getEntity();
         String kind = entity.getPersistentDataContainer().get(entityKindKey, PersistentDataType.STRING);

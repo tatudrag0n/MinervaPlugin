@@ -76,13 +76,47 @@ final class FfaListener implements Listener {
         if (!(event.getEntity() instanceof Player victim)) {
             return;
         }
+        
+        // バグマニアのシルバーフィッシュの特別処理
+        Entity damager = event.getDamager();
+        boolean isBugSilverfish = false;
+        Player bugOwner = null;
+        if (damager != null && "bug_silverfish".equals(damager.getPersistentDataContainer().get(ffa.entityKindKey(), org.bukkit.persistence.PersistentDataType.STRING))) {
+            isBugSilverfish = true;
+            UUID ownerId = ffa.bugOwnerOf(damager);
+            if (ownerId != null) {
+                bugOwner = plugin.getServer().getPlayer(ownerId);
+            }
+        }
+        
         Player attacker = attackingPlayer(event.getDamager());
         boolean victimInFfa = ffa.isPlaying(victim);
         boolean attackerInFfa = attacker != null && ffa.isPlaying(attacker);
+        
+        // バグマニアのシルバーフィッシュの場合、特別に処理
+        if (isBugSilverfish && bugOwner != null) {
+            if (!victimInFfa) {
+                event.setCancelled(true);
+                return;
+            }
+            // バグマニア本人にはダメージを与えない
+            if (victim.getUniqueId().equals(bugOwner.getUniqueId())) {
+                event.setCancelled(true);
+                return;
+            }
+            // フレンドにはダメージを与えない
+            if (plugin.areFriends(bugOwner.getUniqueId(), victim.getUniqueId())) {
+                event.setCancelled(true);
+                return;
+            }
+            event.setCancelled(false);
+            return;
+        }
+        
         if (!victimInFfa && !attackerInFfa) {
             if (attacker != null && ffa.isFfaWorld(victim.getWorld())) {
                 event.setCancelled(true);
-                attacker.sendMessage("§cFFA参加中のプレイヤー同士だけ攻撃できます。");
+                attacker.sendMessage("§cFFA 参加中のプレイヤー同士だけ攻撃できます。");
             }
             return;
         }
@@ -98,7 +132,7 @@ final class FfaListener implements Listener {
         }
         event.setCancelled(true);
         if (attacker != null) {
-            attacker.sendMessage("§cFFA参加者と非参加者は攻撃できません。");
+            attacker.sendMessage("§cFFA 参加者と非参加者は攻撃できません。");
         }
     }
 
