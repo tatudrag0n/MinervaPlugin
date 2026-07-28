@@ -5101,7 +5101,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private boolean handleMinervaCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
+            sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
             return true;
         }
         if (!(sender instanceof Player player) && !List.of("warning", "mp", "em", "emerald", "regen", "reload", "info", "list", "gamerules", "text", "ffa", "structure", "proposal").contains(args[0].toLowerCase(Locale.ROOT))) {
@@ -5200,6 +5200,33 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 }
                 sender.sendMessage(ChatColor.GREEN + "ジャンプパッドワンドを入手しました。縦: " + verticalPower + " / 横: " + horizontalPower);
             }
+            case "slotwand" -> {
+                if (!sender.hasPermission("minerva.shop.admin") && !sender.hasPermission("minerva.admin")) {
+                    sender.sendMessage(ChatColor.RED + "権限がありません。");
+                    return true;
+                }
+                ItemStack wand;
+                if (args.length == 1) {
+                    wand = createShopWand(ShopWandType.SLOT_NORMAL);
+                } else {
+                    if (args.length < 2) {
+                        sender.sendMessage(ChatColor.RED + "/mva slotwand <easy|normal|hard|expert>");
+                        return true;
+                    }
+                    ShopWandType type = ShopWandType.fromKey("slot_" + args[1].toLowerCase(Locale.ROOT));
+                    if (type == null || !type.isSlotWand()) {
+                        sender.sendMessage(ChatColor.RED + "難易度は easy / normal / hard / expert のいずれかです。");
+                        return true;
+                    }
+                    wand = createShopWand(type);
+                }
+                Map<Integer, ItemStack> leftovers = ((Player) sender).getInventory().addItem(wand);
+                if (!leftovers.isEmpty()) {
+                    sender.sendMessage(ChatColor.RED + "インベントリに空きがありません。");
+                    return true;
+                }
+                sender.sendMessage(ChatColor.GREEN + "スロットワンドを入手しました。");
+            }
             case "serverwand" -> {
                 if (!sender.hasPermission("minerva.admin")) {
                     sender.sendMessage(ChatColor.RED + "権限がありません。");
@@ -5271,7 +5298,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                 sender.sendMessage(ChatColor.GREEN + "サーバー移動先を削除しました: " + args[1]);
             }
             case "warning" -> handleWarningCommand(sender, args);
-            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
+            default -> sender.sendMessage(ChatColor.YELLOW + "/minerva check|list|tp|text|ffa|structure|proposal|gamerules|info|reload|kit|balance|pay|merchant|minigame|athletic|quest|mp|regen|chunk|protect|status|tutorial|shopwand|slotwand|jumppadwand|serverwand|sethub|setserver|delserver|warning");
         }
         return true;
     }
@@ -5784,7 +5811,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1 && isMinervaRootCommand(command)) {
-            return List.of("check", "list", "tp", "text", "ffa", "structure", "proposal", "gamerules", "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic", "quest", "mp", "regen", "chunk", "protect", "status", "tutorial", "shopwand", "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning");
+            return List.of("check", "list", "tp", "text", "ffa", "structure", "proposal", "gamerules", "info", "reload", "kit", "balance", "pay", "merchant", "marchant", "minigame", "athletic", "quest", "mp", "regen", "chunk", "protect", "status", "tutorial", "shopwand", "slotwand", "jumppadwand", "serverwand", "sethub", "setserver", "delserver", "warning");
         }
         if (args.length >= 2 && isMinervaRootCommand(command) && "text".equalsIgnoreCase(args[0])) {
             return textDisplayFeature.tabComplete(args);
@@ -5800,6 +5827,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         if (args.length == 2 && isMinervaRootCommand(command) && "shopwand".equalsIgnoreCase(args[0])) {
             return List.of("shelf", "barrel", "frame");
+        }
+        if (args.length == 2 && isMinervaRootCommand(command) && "slotwand".equalsIgnoreCase(args[0])) {
+            return List.of("easy", "normal", "hard", "expert");
         }
         if ((args.length == 2 || args.length == 3) && isMinervaRootCommand(command) && "jumppadwand".equalsIgnoreCase(args[0])) {
             return List.of("1", "5", "10", "25", "50", "75", "100");
