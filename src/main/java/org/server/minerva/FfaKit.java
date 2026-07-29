@@ -42,7 +42,8 @@ enum FfaKit {
     ASSASSIN("assassin", "§5アサシン", Material.GOLDEN_SWORD, List.of()),
     NECROMANCER("necromancer", "§5ネクロマンサー", Material.ZOMBIE_SPAWN_EGG, List.of()),
     TRAPPER("trapper", "§eトラッパー", Material.STONE_PRESSURE_PLATE, List.of()),
-    BUG_MANIA("bug_mania", "§2バグマニア", Material.SILVERFISH_SPAWN_EGG, List.of("bugmania"));
+    BUG_MANIA("bug_mania", "§2バグマニア", Material.SILVERFISH_SPAWN_EGG, List.of("bugmania")),
+    CRUSHER("crusher", "§cクラッシャー", Material.TNT, List.of());
 
     private final String key;
     private final String defaultDisplayName;
@@ -74,7 +75,7 @@ enum FfaKit {
 
     static List<FfaKit> defaultActiveKits() {
         return List.of(AXE, BOW, SPEAR, CROSSBOW, SWORD, SHIELD, TRIDENT, MACE, GAMBLER,
-                WIZARD, SNIPER, VAMPIRE, GRAPPLER, ASSASSIN, NECROMANCER, TRAPPER, BUG_MANIA);
+                WIZARD, SNIPER, VAMPIRE, GRAPPLER, ASSASSIN, NECROMANCER, TRAPPER, BUG_MANIA, CRUSHER);
     }
 
     static List<FfaKit> activeKits(FfaConfig config) {
@@ -160,9 +161,9 @@ enum FfaKit {
             case GRAPPLER -> {
             }
             case ASSASSIN -> {
-                inventory.addItem(kitItem(plugin, this, "fatal_sword", Material.GOLDEN_SWORD, "§5致命の剣", 1,
+                inventory.addItem(kitItem(plugin, this, "fatal_dagger", Material.GOLDEN_SWORD, "§5致命の短剣", 1,
                         enchantments(config, "fatal-sword-enchantments", Map.of("unbreaking", 1))));
-                inventory.addItem(kitItem(plugin, this, "poison_sword", Material.WOODEN_SWORD, "§2毒の剣", 1, Map.of()));
+                inventory.addItem(kitItem(plugin, this, "invisibility_potion", Material.POTION, "§7透明化ポーション", 1, Map.of()));
             }
             case NECROMANCER -> {
                 inventory.addItem(kitItem(plugin, this, "weapon", Material.WOODEN_SWORD, "§5死霊術師の木剣", 1, Map.of()));
@@ -177,6 +178,7 @@ enum FfaKit {
                 inventory.addItem(kitItem(plugin, this, "trap_poison", Material.SPRUCE_PRESSURE_PLATE, "§2毒になる感圧板", 1, Map.of()));
             }
             case BUG_MANIA -> inventory.addItem(kitItem(plugin, this, "bug_sword", Material.STONE_SWORD, "§2虫食いの剣", 1, Map.of()));
+            case CRUSHER -> inventory.addItem(kitItem(plugin, this, "weapon", Material.IRON_AXE, "§cクラッシャーアックス", 1, Map.of()));
         }
         for (ItemStack food : configuredFoodItems(config, this, plugin)) {
             inventory.addItem(food);
@@ -216,6 +218,7 @@ enum FfaKit {
             case NECROMANCER -> Material.ZOMBIE_SPAWN_EGG;
             case TRAPPER -> Material.STONE_PRESSURE_PLATE;
             case BUG_MANIA -> Material.SILVERFISH_SPAWN_EGG;
+            case CRUSHER -> Material.TNT;
             case SWORD -> Material.IRON_SWORD;
         };
         equipment.setItemInMainHand(kitItem(plugin, this, "stand", hand, displayName(config), 1, Map.of()));
@@ -275,6 +278,7 @@ enum FfaKit {
             case NECROMANCER -> "召喚で圧をかける型";
             case TRAPPER -> "罠で戦場を制御する型";
             case BUG_MANIA -> "虫食いと虫召喚で妨害";
+            case CRUSHER -> "爆発反撃の近接型";
         };
     }
 
@@ -297,6 +301,7 @@ enum FfaKit {
             case NECROMANCER -> "召喚卵 / 木の剣";
             case TRAPPER -> "罠 / 石の剣";
             case BUG_MANIA -> "虫食いの剣";
+            case CRUSHER -> "クラッシャーアックス";
         };
     }
 
@@ -304,7 +309,7 @@ enum FfaKit {
         return switch (this) {
             case MACE -> "高め";
             case AXE, SWORD, SHIELD, TRIDENT -> "標準";
-            case SPEAR, CROSSBOW, GAMBLER, VAMPIRE, TRAPPER, BUG_MANIA -> "低め";
+            case SPEAR, CROSSBOW, GAMBLER, VAMPIRE, TRAPPER, BUG_MANIA, CRUSHER -> "低め";
             case BOW, WIZARD, SNIPER, ASSASSIN, NECROMANCER -> "かなり低い";
             case GRAPPLER -> "なし";
         };
@@ -329,6 +334,7 @@ enum FfaKit {
             case NECROMANCER -> "召喚で人数差を作る";
             case TRAPPER -> "踏ませれば強い";
             case BUG_MANIA -> "虫食いと虫で妨害";
+            case CRUSHER -> "被弾時と攻撃時に爆発を起こす";
         };
     }
 
@@ -351,6 +357,7 @@ enum FfaKit {
             case NECROMANCER -> "本体が脆い";
             case TRAPPER -> "設置に隙がある";
             case BUG_MANIA -> "火力は控えめ";
+            case CRUSHER -> "爆発は確率発動";
         };
     }
 
@@ -388,7 +395,7 @@ enum FfaKit {
     }
 
     private static ItemStack[] armor(FfaConfig config, FfaKit kit, Minerva plugin) {
-        if ("none".equalsIgnoreCase(kit.configValue(config, "armor-tier", kit.defaultArmorTier()))) {
+        if (kit == ASSASSIN || "none".equalsIgnoreCase(kit.configValue(config, "armor-tier", kit.defaultArmorTier()))) {
             return new ItemStack[]{null, null, null, null};
         }
         ItemStack[] tierArmor = armorByTier(kit.configValue(config, "armor-tier", kit.defaultArmorTier()));
@@ -624,7 +631,7 @@ enum FfaKit {
             return item;
         }
         ItemMeta meta = item.getItemMeta();
-        boolean fatalSword = "fatal_sword".equals(kind);
+        boolean fatalSword = "fatal_sword".equals(kind) || "fatal_dagger".equals(kind);
         if (!fatalSword) {
             meta.setUnbreakable(true);
             meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);

@@ -3282,9 +3282,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private void fillStatusBox(Player player, Inventory inventory) {
         ConfigurationSection section = getPlayerSection(player.getUniqueId());
-        inventory.setItem(36, named(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "MVL / MVLランク",
-                List.of(ChatColor.GRAY + "MVL: " + getMvl(player.getUniqueId()),
-                        ChatColor.GRAY + "ランク: " + getMvlRank(player.getUniqueId()))));
+        inventory.setItem(36, named(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "MFL / MFLランク",
+                List.of(ChatColor.GRAY + "MFL: " + getMfl(player.getUniqueId()),
+                        ChatColor.GRAY + "ランク: " + getMflRank(player.getUniqueId()))));
         inventory.setItem(37, named(Material.EMERALD, ChatColor.GREEN + "所持MP",
                 List.of(ChatColor.GRAY + formatNumber(getEmeralds(player.getUniqueId())) + "MP")));
         inventory.setItem(38, named(Material.EMERALD_BLOCK, ChatColor.GREEN + "総獲得MP",
@@ -3436,9 +3436,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
 
     private void fillStatusTab(Player player, Inventory inventory) {
         ConfigurationSection section = getPlayerSection(player.getUniqueId());
-        inventory.setItem(10, named(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "MVL / MVLランク",
-                List.of(ChatColor.GRAY + "MVL: " + getMvl(player.getUniqueId()),
-                        ChatColor.GRAY + "ランク: " + getMvlRank(player.getUniqueId()))));
+        inventory.setItem(10, named(Material.EXPERIENCE_BOTTLE, ChatColor.AQUA + "MFL / MFLランク",
+                List.of(ChatColor.GRAY + "MFL: " + getMfl(player.getUniqueId()),
+                        ChatColor.GRAY + "ランク: " + getMflRank(player.getUniqueId()))));
         inventory.setItem(11, named(Material.EMERALD, ChatColor.GREEN + "所持MP",
                 List.of(ChatColor.GRAY + formatNumber(getEmeralds(player.getUniqueId())) + "MP")));
         inventory.setItem(12, named(Material.EMERALD_BLOCK, ChatColor.GREEN + "総獲得MP",
@@ -4873,7 +4873,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return (int) Math.min(MAX_EMERALDS, reward);
     }
 
-    private int getMvl(UUID uuid) {
+    private int getMfl(UUID uuid) {
         ConfigurationSection section = getPlayerSection(uuid);
         int score = section.getInt("total-blocks-broken", 0)
                 + section.getInt("total-blocks-placed", 0)
@@ -4885,18 +4885,18 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         return Math.max(1, score / 100 + 1);
     }
 
-    private String getMvlRank(UUID uuid) {
-        int mvl = getMvl(uuid);
-        if (mvl >= 100) {
+    private String getMflRank(UUID uuid) {
+        int mfl = getMfl(uuid);
+        if (mfl >= 100) {
             return "S";
         }
-        if (mvl >= 60) {
+        if (mfl >= 60) {
             return "A";
         }
-        if (mvl >= 30) {
+        if (mfl >= 30) {
             return "B";
         }
-        if (mvl >= 10) {
+        if (mfl >= 10) {
             return "C";
         }
         return "D";
@@ -4955,8 +4955,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
     private void refreshPlayerName(Player player) {
         String title = selectedTitle(player);
         Component name = titlePrefix(player).append(Component.text(player.getName()));
+        Component tabName = name.append(Component.text(" MFL " + getMfl(player.getUniqueId()), NamedTextColor.AQUA));
         player.displayName(name);
-        player.playerListName(name);
+        player.playerListName(tabName);
         player.customName(name);
         player.setCustomNameVisible(!title.isBlank());
     }
@@ -5411,7 +5412,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
         }
         ConfigurationSection section = getPlayerSection(player.getUniqueId());
         player.sendMessage(ChatColor.GREEN + "MinerVaステータス");
-        player.sendMessage(ChatColor.GRAY + "MVL: " + getMvl(player.getUniqueId()) + " / ランク: " + getMvlRank(player.getUniqueId()));
+        player.sendMessage(ChatColor.GRAY + "MFL: " + getMfl(player.getUniqueId()) + " / ランク: " + getMflRank(player.getUniqueId()));
         player.sendMessage(ChatColor.GRAY + "所持MP: " + formatNumber(getEmeralds(player.getUniqueId())) + "MP");
         player.sendMessage(ChatColor.GRAY + "転生ボーナス: +" + getReincarnationBonus(player.getUniqueId()) + "%");
         player.sendMessage(ChatColor.GRAY + "総プレイ時間: " + formatPlayTime(section.getInt("total-minutes", 0)));

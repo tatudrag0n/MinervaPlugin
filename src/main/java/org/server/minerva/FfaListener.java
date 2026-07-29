@@ -26,6 +26,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import java.util.UUID;
@@ -109,6 +110,10 @@ final class FfaListener implements Listener {
             return;
         }
         
+        if (victimInFfa && attacker == null) {
+            event.setCancelled(false);
+            return;
+        }
         if (!victimInFfa && !attackerInFfa) {
             if (attacker != null && ffa.isFfaWorld(victim.getWorld())) {
                 event.setCancelled(true);
@@ -198,7 +203,16 @@ final class FfaListener implements Listener {
         if (respawn != null) {
             event.setRespawnLocation(respawn);
         }
-        ffa.respawn(event.getPlayer());
+        plugin.getServer().getScheduler().runTask(plugin, () -> ffa.respawn(event.getPlayer()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onFoodLevelChange(FoodLevelChangeEvent event) {
+        if (event.getEntity() instanceof Player player
+                && !"survival".equalsIgnoreCase(player.getWorld().getName())
+                && event.getFoodLevel() < player.getFoodLevel()) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)

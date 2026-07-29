@@ -357,6 +357,23 @@ final class FfaManager {
         }
     }
 
+    private void awardAssassinKillReward(Player killer) {
+        FfaSession session = sessions.get(killer.getUniqueId());
+        if (session == null || session.kit != FfaKit.ASSASSIN) {
+            return;
+        }
+        String path = "players." + killer.getUniqueId() + ".ffa.assassin-kills";
+        int kills = plugin.data().getInt(path, 0) + 1;
+        plugin.data().set(path, kills);
+        plugin.saveData();
+        if (kills % 2 == 0) {
+            ItemStack dagger = FfaKit.kitItem(plugin, FfaKit.ASSASSIN, "fatal_dagger", Material.GOLDEN_SWORD, "§5致命の短剣", 1, Map.of());
+            tagOwner(dagger, killer.getUniqueId());
+            killer.getInventory().addItem(dagger);
+            killer.sendMessage("§5プレイヤー2キル報酬: 致命の短剣を獲得しました。");
+        }
+    }
+
     private Location leaveLocation(World world) {
         int y = world.getHighestBlockYAt(0, 0) + 1;
         return new Location(world, 0.5D, y, 0.5D);
@@ -374,6 +391,7 @@ final class FfaManager {
         stats.recordDeath(victim);
         if (killer != null && isPlaying(killer) && !killer.getUniqueId().equals(victim.getUniqueId())) {
             stats.recordKill(killer);
+            awardAssassinKillReward(killer);
             awardKillEmeralds(killer, victim);
             updateScoreboard(killer);
             killer.sendMessage("§a" + victim.getName() + " を倒しました！ 現在の連続キル: " + stats.currentStreak(killer.getUniqueId()));
@@ -478,6 +496,14 @@ final class FfaManager {
         }
         if ("golden_apple".equals(kind) && session.kit == FfaKit.SWORD) {
             handleReusableGoldenApple(player, item);
+            return true;
+        }
+        if ("invisibility_potion".equals(kind) && session.kit == FfaKit.ASSASSIN) {
+            if (beginCooldown(player, "assassin_invisibility", 180L, "透明化")) {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * 30, 0, false, false, true));
+                restoreReusableItem(player, event.getHand(), item.clone());
+                player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.7F, 1.6F);
+            }
             return true;
         }
         if (kind.startsWith("summon_") && session.kit == FfaKit.NECROMANCER) {
@@ -763,7 +789,7 @@ final class FfaManager {
 
     private Player trapTarget(TrapState trap) {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (!isPlaying(player) || trap.owner().equals(player.getUniqueId()) || !player.getWorld().equals(trap.location().getWorld())) {
+            if (!isPlaying(player) || !player.getWorld().equals(trap.location().getWorld())) {
                 continue;
             }
             if (player.getLocation().distanceSquared(trap.location().clone().add(0.5D, 0.0D, 0.5D)) <= 1.2D) {
@@ -776,14 +802,17 @@ final class FfaManager {
     private void triggerTrap(TrapState trap, Player target) {
         Player owner = plugin.getServer().getPlayer(trap.owner());
         restoreTrap(trap);
-        if (owner == null || !isPlaying(owner) || plugin.areFriends(owner.getUniqueId(), target.getUniqueId())) {
+        if (owner == null || !isPlaying(owner)) {
             return;
         }
         recordDamage(owner, target);
         World world = trap.location().getWorld();
         if ("explosion".equals(trap.type())) {
             target.damage(6.0D, owner);
+            target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 255, false, false, true));
+            target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 40, 128, false, false, true));
             if (world != null) {
+                world.spawnParticle(org.bukkit.Particle.EXPLOSION, trap.location().clone().add(0.5, 0.5, 0.5), 1);
                 world.playSound(trap.location(), Sound.ENTITY_GENERIC_EXPLODE, 0.9F, 1.1F);
             }
             return;
@@ -791,6 +820,8 @@ final class FfaManager {
         if ("poison".equals(trap.type())) {
             target.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 100, 1, false, false, true));
             if (world != null) {
+                ThrownPotion potion = world.spawn(trap.location().clone().add(0.5, 0.2, 0.5), ThrownPotion.class);
+                potion.setItem(FfaKit.kitItem(plugin, FfaKit.TRAPPER, "trap_poison_cloud", Material.LINGERING_POTION, "§2毒の残留ポーション", 1, Map.of()));
                 world.playSound(trap.location(), Sound.ENTITY_SPIDER_AMBIENT, 0.8F, 1.0F);
             }
             return;
@@ -865,9 +896,6 @@ final class FfaManager {
         double bestDistance = Double.MAX_VALUE;
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (!isPlaying(player) || player.getUniqueId().equals(owner.getUniqueId()) || !player.getWorld().equals(location.getWorld())) {
-                continue;
-            }
-            if (plugin.areFriends(owner.getUniqueId(), player.getUniqueId())) {
                 continue;
             }
             FfaSession session = sessions.get(player.getUniqueId());
@@ -1105,6 +1133,30 @@ final class FfaManager {
         return attacker != null && isPlaying(attacker) ? attacker : null;
     }
 
+    private void triggerCrusherExplosion(Player owner, Player target, boolean attacking) {
+        double roll = ThreadLocalRandom.current().nextDouble();
+        double scale = attacking ? 0.5D : 1.0D;
+        double damage = 0.0D;
+        if (roll < 0.0625D * scale) {
+            damage = 32.0D;
+        } else if (roll < 0.125D * scale) {
+            damage = 16.0D;
+        } else if (roll < 0.25D * scale) {
+            damage = 8.0D;
+        } else if (roll < 0.50D * scale) {
+            damage = 4.0D;
+        }
+        if (damage <= 0.0D || target == null || !target.isOnline() || target.getUniqueId().equals(owner.getUniqueId())) {
+            return;
+        }
+        double distance = Math.min(6.0D, owner.getLocation().distance(target.getLocation()));
+        double distanceFactor = Math.max(0.25D, 1.0D - (distance / 8.0D));
+        double coverFactor = owner.hasLineOfSight(target) ? 1.0D : 0.5D;
+        target.damage(damage * distanceFactor * coverFactor, owner);
+        owner.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, owner.getLocation().add(0, 1, 0), damage >= 16.0D ? 2 : 1);
+        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7F, damage >= 16.0D ? 0.6F : 1.2F);
+    }
+
     private void capFinalDamage(EntityDamageByEntityEvent event, double cap) {
         if (event.getFinalDamage() > cap && event.getDamage() > 0.0D) {
             event.setDamage(event.getDamage() * (cap / event.getFinalDamage()));
@@ -1330,16 +1382,28 @@ final class FfaManager {
                 && "event_sky_spear".equals(projectile.getPersistentDataContainer().get(projectileKindKey, PersistentDataType.STRING))) {
             capFinalDamage(event, 12.0D);
         }
+        FfaSession victimSessionForCrusher = sessions.get(victim.getUniqueId());
+        if (victimSessionForCrusher != null && victimSessionForCrusher.kit == FfaKit.CRUSHER) {
+            triggerCrusherExplosion(victim, attacker, false);
+        }
         FfaSession session = sessions.get(attacker.getUniqueId());
         if (session == null) {
             return;
         }
+        if (session.kit == FfaKit.CRUSHER) {
+            triggerCrusherExplosion(attacker, victim, true);
+        }
         ItemStack mainHand = attacker.getInventory().getItemInMainHand();
         if (session.kit == FfaKit.GAMBLER && isFfaItem(mainHand) && "weapon".equals(itemKind(mainHand)) && event.getFinalDamage() > 0.0D) {
-            double min = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "min-damage-multiplier"), -3.0D);
-            double max = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 3.0D);
-            double multiplier = ThreadLocalRandom.current().nextDouble(Math.min(min, max), Math.max(min, max) + 0.000001D);
-            attacker.sendActionBar(Component.text("倍率 " + String.format(Locale.ROOT, "%.2f", multiplier), multiplier < 0 ? NamedTextColor.RED : NamedTextColor.GOLD));
+            double min = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "min-damage-multiplier"), -10.0D);
+            double max = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 15.0D);
+            int steps = (int) Math.round((Math.max(min, max) - Math.min(min, max)) / 0.5D);
+            double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5D;
+            attacker.sendMessage("§6ギャンブラー倍率: §e" + String.format(Locale.ROOT, "%.1f", multiplier) + "倍");
+            if (multiplier == 15.0D) {
+                attacker.sendMessage("§6§l✦✦✦ LUCKY PUNCH! 15.0倍! ✦✦✦");
+                plugin.unlockTitle(attacker, "ラッキーパンチ");
+            }
             if (multiplier < 0.0D) {
                 event.setCancelled(true);
                 if (gamblerSelfDamage.add(attacker.getUniqueId())) {
@@ -1355,16 +1419,16 @@ final class FfaManager {
         }
         if (session.kit == FfaKit.ASSASSIN && isFfaItem(mainHand) && event.getFinalDamage() > 0.0D) {
             String kind = itemKind(mainHand);
-            if ("fatal_sword".equals(kind)) {
+            if ("fatal_sword".equals(kind) || "fatal_dagger".equals(kind)) {
                 if (plugin.isStructureProtectedLocation(victim.getLocation())) {
                     return;
                 }
                 event.setDamage(0.0D);
-                double target = Math.max(0.0D, victim.getHealth() - 1.0D);
+                double target = Math.max(0.0D, victim.getHealth() - 0.5D);
                 if (target > 0.0D) {
-                    victim.setHealth(Math.max(1.0D, victim.getHealth() - target));
+                    victim.setHealth(Math.max(0.5D, victim.getHealth() - target));
                     mainHand.setAmount(0);
-                    attacker.sendActionBar(Component.text("致命の剣を使用しました", NamedTextColor.DARK_RED));
+                    attacker.sendActionBar(Component.text("致命の短剣を使用しました", NamedTextColor.DARK_RED));
                 }
                 return;
             }
@@ -1565,6 +1629,9 @@ final class FfaManager {
         }
         if (kit == FfaKit.BUG_MANIA) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.INFESTED, 100, 0, false, false, true));
+        }
+        if (kit == FfaKit.ASSASSIN) {
+            player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 0, false, false, true));
         }
     }
 
