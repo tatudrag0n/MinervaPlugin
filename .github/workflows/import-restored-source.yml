@@ -1,0 +1,71 @@
+name: Import restored v15 source
+
+on:
+  push:
+    branches:
+      - restore/v15-canonical-source
+    paths:
+      - 'restore/v15-restored-source.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    if: ${{ !contains(github.event.head_commit.message || '', '[imported-v15-source]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout restore branch
+        uses: actions/checkout@v4
+        with:
+          ref: restore/v15-canonical-source
+          fetch-depth: 0
+
+      - name: Verify archive exists
+        run: test -f restore/v15-restored-source.zip
+
+      - name: Replace source tree from canonical archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf src
+          tmp_dir="$(mktemp -d)"
+          unzip -q restore/v15-restored-source.zip -d "$tmp_dir"
+
+          source_root="$tmp_dir"
+          if [ -d "$tmp_dir/v15-restored-source" ]; then
+            source_root="$tmp_dir/v15-restored-source"
+          fi
+
+          test -f "$source_root/pom.xml"
+          test -d "$source_root/src/main/java"
+          test -d "$source_root/src/main/resources"
+
+          cp -a "$source_root/src" ./src
+          cp "$source_root/pom.xml" ./pom.xml
+          rm -f restore/v15-restored-source.zip
+
+      - name: Validate imported file set
+        shell: bash
+        run: |
+          set -euo pipefail
+          java_count="$(find src/main/java -type f -name '*.java' | wc -l)"
+          test "$java_count" -eq 32
+          test -f src/main/java/org/server/minerva/InventoryGroupFeature.java
+          test -f src/main/resources/plugin.yml
+          test -f src/main/resources/config.yml
+          echo "Imported Java source files: $java_count"
+
+      - name: Commit imported source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A src pom.xml restore/v15-restored-source.zip
+          git diff --cached --quiet && exit 0
+          git commit -m 'Import canonical restored v15 source [imported-v15-source]'
+          git push origin HEAD:restore/v15-canonical-source
