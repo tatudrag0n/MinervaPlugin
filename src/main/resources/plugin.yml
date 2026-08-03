@@ -1,5 +1,5 @@
 name: minerva
-version: 26.1.2
+version: 26.1.2-fixed-v14
 
 main: org.server.minerva.Minerva
 api-version: '1.21'

@@ -6,7 +6,7 @@
 
     <groupId>org.server</groupId>
     <artifactId>minervaplugin</artifactId>
-    <version>26.1.2</version>
+    <version>26.1.2-fixed-v14</version>
     <packaging>jar</packaging>
 
     <name>mifronplugin</name>
