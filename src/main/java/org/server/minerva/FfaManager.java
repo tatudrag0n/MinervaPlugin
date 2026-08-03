@@ -91,6 +91,7 @@ final class FfaManager {
     private final Map<UUID, Integer> sniperAmmo = new HashMap<>();
     private final Map<UUID, BukkitTask> revolverReloadTasks = new HashMap<>();
     private final Map<UUID, BukkitTask> sniperReloadTasks = new HashMap<>();
+    private final Map<UUID, Long> lastCrossbowShotTick = new HashMap<>();
     private final Map<UUID, BukkitTask> windChargeRefillTasks = new HashMap<>();
     private final Map<UUID, Long> wizardPotionCooldownUntil = new HashMap<>();
     private final Map<UUID, UUID> wizardPotionOwners = new ConcurrentHashMap<>();
@@ -799,6 +800,64 @@ final class FfaManager {
         return null;
     }
 
+    void handleTrapStep(Player player) {
+        if (player == null || !isPlaying(player)) {
+            return;
+        }
+        for (UUID owner : new ArrayList<>(traps.keySet())) {
+            Map<String, TrapState> owned = traps.get(owner);
+            if (owned == null) {
+                continue;
+            }
+            for (TrapState trap : new ArrayList<>(owned.values())) {
+                if (!player.getWorld().equals(trap.location().getWorld())) {
+                    continue;
+                }
+                if (player.getLocation().distanceSquared(trap.location().clone().add(0.5D, 0.0D, 0.5D)) <= 1.2D) {
+                    owned.remove(trap.type());
+                    triggerTrap(trap, player);
+                    if (owned.isEmpty()) {
+                        traps.remove(owner);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    boolean handleEmptyCrossbowInteract(PlayerInteractEvent event) {
+        if (!event.getAction().isRightClick()) {
+            return false;
+        }
+        Player player = event.getPlayer();
+        FfaSession session = sessions.get(player.getUniqueId());
+        if (session == null || (session.kit != FfaKit.CROSSBOW && session.kit != FfaKit.SNIPER)) {
+            return false;
+        }
+        ItemStack item = event.getItem();
+        if (!isFfaItem(item)) {
+            return false;
+        }
+        String kind = itemKind(item);
+        if (session.kit == FfaKit.CROSSBOW && "revolver".equals(kind)) {
+            int capacity = session.kit.revolverCapacity(config);
+            if (revolverAmmo.getOrDefault(player.getUniqueId(), capacity) <= 0) {
+                event.setCancelled(true);
+                startCrossbowReload(player, FfaKit.CROSSBOW, revolverAmmo, revolverReloadTasks, capacity, "リボルバー");
+                return true;
+            }
+        }
+        if (session.kit == FfaKit.SNIPER && "sniper".equals(kind)) {
+            int capacity = session.kit.sniperCapacity(config);
+            if (sniperAmmo.getOrDefault(player.getUniqueId(), capacity) <= 0) {
+                event.setCancelled(true);
+                startCrossbowReload(player, FfaKit.SNIPER, sniperAmmo, sniperReloadTasks, capacity, "スナイパー");
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void triggerTrap(TrapState trap, Player target) {
         Player owner = plugin.getServer().getPlayer(trap.owner());
         restoreTrap(trap);
@@ -1152,7 +1211,7 @@ final class FfaManager {
         double distance = Math.min(6.0D, owner.getLocation().distance(target.getLocation()));
         double distanceFactor = Math.max(0.25D, 1.0D - (distance / 8.0D));
         double coverFactor = owner.hasLineOfSight(target) ? 1.0D : 0.5D;
-        target.damage(damage * distanceFactor * coverFactor, owner);
+        target.damage(damage * 0.80D * distanceFactor * coverFactor, owner);
         owner.getWorld().spawnParticle(org.bukkit.Particle.EXPLOSION, owner.getLocation().add(0, 1, 0), damage >= 16.0D ? 2 : 1);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.7F, damage >= 16.0D ? 0.6F : 1.2F);
     }
@@ -1308,7 +1367,14 @@ final class FfaManager {
             int fallbackCapacity,
             String label,
             String projectileKind) {
-        FfaSession session = sessions.get(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        long currentTick = plugin.getServer().getCurrentTick();
+        Long lastTick = lastCrossbowShotTick.put(playerId, currentTick);
+        if (lastTick != null && lastTick == currentTick) {
+            event.setCancelled(true);
+            return;
+        }
+        FfaSession session = sessions.get(playerId);
         if (session == null || session.kit != expectedKit) {
             event.setCancelled(true);
             return;
@@ -1594,6 +1660,7 @@ final class FfaManager {
         }
         revolverAmmo.remove(uuid);
         sniperAmmo.remove(uuid);
+        lastCrossbowShotTick.remove(uuid);
         gamblerSelfDamage.remove(uuid);
         vampireDamage.remove(uuid);
         wizardPotionCooldownUntil.remove(uuid);

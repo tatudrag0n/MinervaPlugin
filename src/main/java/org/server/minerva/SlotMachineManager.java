@@ -198,14 +198,31 @@ public class SlotMachineManager implements Listener {
     }
 
     public SlotSession createSession(Player player, Block shelfBlock, Difficulty difficulty) {
+        Material shelfMaterial = shelfMaterial(difficulty);
+        if (shelfMaterial == null) {
+            return null;
+        }
+        if (shelfBlock.getType() != shelfMaterial) {
+            shelfBlock.setType(shelfMaterial, false);
+        }
         if (!(shelfBlock.getBlockData() instanceof Shelf)) {
             return null;
         }
-        
+
         SlotSession session = new SlotSession(player, shelfBlock, difficulty);
         activeSessions.put(player.getUniqueId(), session);
         updateShelfDisplay(session);
         return session;
+    }
+
+
+    private Material shelfMaterial(Difficulty difficulty) {
+        return switch (difficulty) {
+            case EASY -> Material.BAMBOO_SHELF;
+            case NORMAL -> Material.ACACIA_SHELF;
+            case HARD -> Material.CRIMSON_SHELF;
+            case EXPERT -> Material.WARPED_SHELF;
+        };
     }
 
     public SlotSession getSession(Player player) {
@@ -337,11 +354,19 @@ public class SlotMachineManager implements Listener {
             if (reward.getSymbols()[0] == symbol) {
                 baseMultiplier = reward.getMultiplier();
                 if (reward.isJackpot()) {
+                    String jackpotPath = "players." + player.getUniqueId() + ".slot.jackpots";
+                    int jackpotCount = plugin.data().getInt(jackpotPath, 0);
+                    if (jackpotCount >= 10) {
+                        player.sendMessage("§cジャックポットの獲得上限（10回）に達しています。");
+                        handleLoss(session);
+                        return;
+                    }
                     isJackpot = true;
-                    // ジャックポット：称号付与
+                    plugin.data().set(jackpotPath, jackpotCount + 1);
+                    plugin.saveData();
                     plugin.unlockTitle(player, "ギャンブラー");
                     playJackpotEffect(player);
-                    player.sendMessage("§6§l★ジャックポット!!★ §e称号【ギャンブラー】を獲得！");
+                    player.sendMessage("§6§l★ジャックポット!!★ §e称号【ギャンブラー】を獲得！ §7(" + (jackpotCount + 1) + "/10)");
                 }
                 break;
             }
