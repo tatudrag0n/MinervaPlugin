@@ -399,8 +399,10 @@ ffa:
       icon: "golden_sword"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      min-damage-multiplier: -10.0
-      max-damage-multiplier: 15.0
+      min-random-damage: -10
+      max-random-damage: 20
+      min-incoming-reduction: -5
+      max-incoming-reduction: 5
       mp-min: -10
       mp-max: 10
       food-items: [ "cookie:1" ]

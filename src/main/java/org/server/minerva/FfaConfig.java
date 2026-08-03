@@ -322,8 +322,10 @@ final class FfaConfig {
         setIfMissing(config, "ffa.kits.vampire.lifesteal-percent", 50);
         setIfMissing(config, "ffa.kits.vampire.damage-per-strength-level", 100);
         setIfMissing(config, "ffa.kits.vampire.sun-damage", 1.0D);
-        setIfMissing(config, "ffa.kits.gambler.min-damage-multiplier", -3.0D);
-        setIfMissing(config, "ffa.kits.gambler.max-damage-multiplier", 3.0D);
+        setIfMissing(config, "ffa.kits.gambler.min-random-damage", -10);
+        setIfMissing(config, "ffa.kits.gambler.max-random-damage", 20);
+        setIfMissing(config, "ffa.kits.gambler.min-incoming-reduction", -5);
+        setIfMissing(config, "ffa.kits.gambler.max-incoming-reduction", 5);
         setIfMissingFromLegacy(config, "ffa.kits.gambler.mp-min", "ffa.kits.gambler.em-min", -10);
         setIfMissingFromLegacy(config, "ffa.kits.gambler.mp-max", "ffa.kits.gambler.em-max", 10);
         setIfMissing(config, "ffa.kits.necromancer.max-summons", 5);

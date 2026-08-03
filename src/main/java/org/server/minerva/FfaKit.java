@@ -269,7 +269,7 @@ enum FfaKit {
             case SHIELD -> "盾を使う防御型";
             case TRIDENT -> "天候で変化する中距離型";
             case MACE -> "高低差を使う重装型";
-            case GAMBLER -> "運で火力と報酬が揺れる型";
+            case GAMBLER -> "攻撃と防御の数値がランダムに変動する型";
             case WIZARD -> "再使用型ポーション妨害";
             case SNIPER -> "高倍率クロスボウ狙撃";
             case VAMPIRE -> "吸血で伸びる近接型";
@@ -325,7 +325,7 @@ enum FfaKit {
             case SHIELD -> "正面防御に強い";
             case TRIDENT -> "雨や雷雨で性能が変わる";
             case MACE -> "落下攻撃とウィンドチャージ";
-            case GAMBLER -> "高倍率を引くと強い";
+            case GAMBLER -> "最大20ダメージと被ダメージ軽減を狙える";
             case WIZARD -> "複数の妨害ポーション";
             case SNIPER -> "当たれば高火力";
             case VAMPIRE -> "与ダメージで回復する";
@@ -348,7 +348,7 @@ enum FfaKit {
             case SHIELD -> "火力が低め";
             case TRIDENT -> "投擲中に隙ができる";
             case MACE -> "機動の難度が高い";
-            case GAMBLER -> "自傷の危険がある";
+            case GAMBLER -> "攻撃で相手を回復させたり被ダメージが増える場合がある";
             case WIZARD -> "防具が薄い";
             case SNIPER -> "移動が遅く近接に弱い";
             case VAMPIRE -> "常時弱体化";

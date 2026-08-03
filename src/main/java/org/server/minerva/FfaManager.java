@@ -96,7 +96,6 @@ final class FfaManager {
     private final Map<UUID, Long> wizardPotionCooldownUntil = new HashMap<>();
     private final Map<UUID, UUID> wizardPotionOwners = new ConcurrentHashMap<>();
     private final Map<UUID, Set<UUID>> trackedTridents = new HashMap<>();
-    private final Set<UUID> gamblerSelfDamage = new HashSet<>();
     private final Map<UUID, Double> vampireDamage = new HashMap<>();
     private final Map<UUID, KillRewardState> killRewardStates = new HashMap<>();
     private final Map<UUID, List<UUID>> summonedMobs = new HashMap<>();
@@ -1020,7 +1019,11 @@ final class FfaManager {
         if (entity == null) {
             return null;
         }
-        return bugOwners.get(entity.getUniqueId());
+        UUID owner = bugOwners.get(entity.getUniqueId());
+        if (owner == null) {
+            owner = parseUuid(entity.getPersistentDataContainer().get(entityOwnerKey, PersistentDataType.STRING));
+        }
+        return owner;
     }
 
     NamespacedKey entityKindKey() {
@@ -1452,6 +1455,16 @@ final class FfaManager {
         if (victimSessionForCrusher != null && victimSessionForCrusher.kit == FfaKit.CRUSHER) {
             triggerCrusherExplosion(victim, attacker, false);
         }
+        if (victimSessionForCrusher != null && victimSessionForCrusher.kit == FfaKit.GAMBLER
+                && event.getFinalDamage() > 0.0D) {
+            int minReduction = plugin.getConfig().getInt(config.kitPath(FfaKit.GAMBLER, "min-incoming-reduction"), -5);
+            int maxReduction = plugin.getConfig().getInt(config.kitPath(FfaKit.GAMBLER, "max-incoming-reduction"), 5);
+            int low = Math.min(minReduction, maxReduction);
+            int high = Math.max(minReduction, maxReduction);
+            int reduction = ThreadLocalRandom.current().nextInt(low, high + 1);
+            event.setDamage(Math.max(0.0D, event.getDamage() - reduction));
+            victim.sendMessage("§6ギャンブラー防御抽選: §e" + reduction + " ダメージ軽減");
+        }
         FfaSession session = sessions.get(attacker.getUniqueId());
         if (session == null) {
             return;
@@ -1460,28 +1473,32 @@ final class FfaManager {
             triggerCrusherExplosion(attacker, victim, true);
         }
         ItemStack mainHand = attacker.getInventory().getItemInMainHand();
-        if (session.kit == FfaKit.GAMBLER && isFfaItem(mainHand) && "weapon".equals(itemKind(mainHand)) && event.getFinalDamage() > 0.0D) {
-            double min = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "min-damage-multiplier"), -10.0D);
-            double max = plugin.getConfig().getDouble(config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 15.0D);
-            int steps = (int) Math.round((Math.max(min, max) - Math.min(min, max)) / 0.5D);
-            double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5D;
-            attacker.sendMessage("§6ギャンブラー倍率: §e" + String.format(Locale.ROOT, "%.1f", multiplier) + "倍");
-            if (multiplier == 15.0D) {
-                attacker.sendMessage("§6§l✦✦✦ LUCKY PUNCH! 15.0倍! ✦✦✦");
-                plugin.unlockTitle(attacker, "ラッキーパンチ");
-            }
-            if (multiplier < 0.0D) {
+        if (session.kit == FfaKit.GAMBLER && isFfaItem(mainHand)
+                && "weapon".equals(itemKind(mainHand)) && event.getFinalDamage() > 0.0D) {
+            int minDamage = plugin.getConfig().getInt(config.kitPath(FfaKit.GAMBLER, "min-random-damage"), -10);
+            int maxDamage = plugin.getConfig().getInt(config.kitPath(FfaKit.GAMBLER, "max-random-damage"), 20);
+            int low = Math.min(minDamage, maxDamage);
+            int high = Math.max(minDamage, maxDamage);
+            int randomDamage = ThreadLocalRandom.current().nextInt(low, high + 1);
+            attacker.sendMessage("§6ギャンブラー攻撃抽選: §e" + randomDamage + " ダメージ");
+            if (randomDamage < 0) {
                 event.setCancelled(true);
-                if (gamblerSelfDamage.add(attacker.getUniqueId())) {
-                    try {
-                        attacker.damage(event.getDamage() * Math.abs(multiplier), attacker);
-                    } finally {
-                        gamblerSelfDamage.remove(attacker.getUniqueId());
-                    }
+                double heal = Math.min(Math.abs(randomDamage), victim.getMaxHealth() - victim.getHealth());
+                if (heal > 0.0D) {
+                    victim.setHealth(victim.getHealth() + heal);
                 }
+                victim.sendMessage("§aギャンブラーの攻撃で " + String.format(Locale.ROOT, "%.1f", heal) + " 回復しました。");
                 return;
             }
-            event.setDamage(event.getDamage() * multiplier);
+            if (randomDamage == 0) {
+                event.setCancelled(true);
+                return;
+            }
+            event.setDamage(randomDamage);
+            if (randomDamage == 20) {
+                attacker.sendMessage("§6§l✦✦✦ JACKPOT DAMAGE! 20ダメージ! ✦✦✦");
+                plugin.unlockTitle(attacker, "ラッキーパンチ");
+            }
         }
         if (session.kit == FfaKit.ASSASSIN && isFfaItem(mainHand) && event.getFinalDamage() > 0.0D) {
             String kind = itemKind(mainHand);
@@ -1661,7 +1678,6 @@ final class FfaManager {
         revolverAmmo.remove(uuid);
         sniperAmmo.remove(uuid);
         lastCrossbowShotTick.remove(uuid);
-        gamblerSelfDamage.remove(uuid);
         vampireDamage.remove(uuid);
         wizardPotionCooldownUntil.remove(uuid);
         wizardPotionOwners.entrySet().removeIf(entry -> uuid.equals(entry.getValue()));
