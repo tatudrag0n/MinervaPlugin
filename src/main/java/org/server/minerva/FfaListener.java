@@ -188,6 +188,22 @@ final class FfaListener implements Listener {
         event.setKeepInventory(true);
         event.setKeepLevel(true);
         ffa.handleDeath(victim, victim.getKiller());
+
+        // Death screen input can become stuck on some Paper/client combinations.
+        // Respawn from the server on the next tick, while the FFA session is still active.
+        plugin.getServer().getScheduler().runTask(plugin, () -> forceRespawn(victim));
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> forceRespawn(victim), 20L);
+    }
+
+    private void forceRespawn(Player player) {
+        if (!player.isOnline() || !player.isDead() || !ffa.isPlaying(player)) {
+            return;
+        }
+        try {
+            player.spigot().respawn();
+        } catch (RuntimeException ex) {
+            plugin.getLogger().warning("FFA player respawn failed for " + player.getName() + ": " + ex.getMessage());
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)

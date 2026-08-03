@@ -380,7 +380,7 @@ final class FfaManager {
     }
 
     void handleDeath(Player victim, Player killer) {
-        FfaSession victimSession = sessions.remove(victim.getUniqueId());
+        FfaSession victimSession = sessions.get(victim.getUniqueId());
         if (victimSession == null) {
             return;
         }
@@ -398,9 +398,7 @@ final class FfaManager {
         }
         cleanupKitRuntime(victim);
         clearTemporaryState(victim);
-        Location leaveLocation = leaveLocation(victim.getWorld());
-        deathLeaveRestores.put(victim.getUniqueId(), new DeathLeaveRestore(victimSession.state, leaveLocation));
-        victim.sendMessage("§cあなたは倒されました。FFAから退出しました。");
+        victim.sendMessage("§cあなたは倒されました。まもなく再出撃します。");
     }
 
     Location handleDeathLeaveRespawn(Player player) {
