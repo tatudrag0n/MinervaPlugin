@@ -3,7 +3,9 @@ name: Build MinervaPlugin
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
+      - restore/v15-canonical-source
   workflow_dispatch:
 
 permissions:
@@ -24,6 +26,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+
+      - name: Verify Java
+        run: |
+          java -version
+          javac -version
 
       - name: Build
         run: mvn -B -DskipTests clean package
