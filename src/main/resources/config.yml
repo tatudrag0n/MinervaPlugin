@@ -179,6 +179,7 @@ protection:
 
 barrel-shop:
   offer-slots: 27
+  bargain-slots: 3
 
 auction:
   fee-percent: 5
@@ -209,7 +210,9 @@ ffa:
     selected-kit: "sword"
     selector: {}
   kits:
-    armor-balance-version: 2
+    armor-balance-version: 3
+    armor-points-bonus: 3.0
+    vampire-balance-version: 1
     kit-balance-version: 4
     default: "sword"
     enabled:
@@ -230,6 +233,7 @@ ffa:
       - "necromancer"
       - "trapper"
       - "bug_mania"
+      - "crusher"
     food-cooldown-seconds: 15
     bow:
       display-name: "§a狩人"
@@ -395,8 +399,8 @@ ffa:
       icon: "golden_sword"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
-      min-damage-multiplier: -3.0
-      max-damage-multiplier: 3.0
+      min-damage-multiplier: -10.0
+      max-damage-multiplier: 15.0
       mp-min: -10
       mp-max: 10
       food-items: [ "cookie:1" ]
@@ -409,7 +413,7 @@ ffa:
       armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
       ammo-capacity: 2
       reload-ticks: 125
-      damage-multiplier: 5.0
+      damage-multiplier: 3.0
       crossbow-enchantments: [ "piercing:4" ]
       food-items: [ "baked_potato:1" ]
       items: []
@@ -421,7 +425,7 @@ ffa:
       armor: { helmet: "chainmail_helmet", chestplate: "leather_chestplate", leggings: "chainmail_leggings", boots: "none" }
       lifesteal-percent: 50
       damage-per-strength-level: 100
-      sun-damage: 1.0
+      sun-damage: 2.0
       food-items: [ "cooked_beef:1" ]
       items: []
       potions: []
@@ -436,8 +440,8 @@ ffa:
     assassin:
       display-name: "§5アサシン"
       icon: "golden_sword"
-      armor-tier: "leather"
-      armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "chainmail_boots" }
+      armor-tier: "none"
+      armor: { helmet: "none", chestplate: "none", leggings: "none", boots: "none" }
       fatal-sword-enchantments: [ "unbreaking:1" ]
       food-items: [ "sweet_berries:1" ]
       items: []
@@ -469,6 +473,14 @@ ffa:
       max-owned-silverfish: 6
       max-global-silverfish: 30
       food-items: [ "spider_eye:1" ]
+      items: []
+      potions: []
+    crusher:
+      display-name: "§cクラッシャー"
+      icon: "tnt"
+      armor-tier: "leather"
+      armor: { helmet: "leather_helmet", chestplate: "leather_chestplate", leggings: "leather_leggings", boots: "leather_boots" }
+      food-items: [ "cooked_beef:1" ]
       items: []
       potions: []
   rewards:
