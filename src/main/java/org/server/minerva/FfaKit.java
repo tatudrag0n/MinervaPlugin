@@ -220,7 +220,7 @@ enum FfaKit {
          case MACE:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "mace", Material.MACE, "§7重戦士のメイス", 1, Map.of())});
             inventory.addItem(
-               new ItemStack[]{kitItem(plugin, this, "wind_charge", Material.WIND_CHARGE, "§f重戦士のウィンドチャージ", this.amount(config, "wind-charge", 10), Map.of())}
+               new ItemStack[]{kitItem(plugin, this, "wind_charge", Material.WIND_CHARGE, "§f重戦士のウィンドチャージ", 1, Map.of())}
             );
             break;
          case GAMBLER:
@@ -285,8 +285,10 @@ enum FfaKit {
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.IRON_AXE, "§cクラッシャーアックス", 1, Map.of())});
       }
 
-      for (ItemStack food : configuredFoodItems(config, this, plugin)) {
-         inventory.addItem(new ItemStack[]{food});
+      if (this != VAMPIRE) {
+         for (ItemStack food : configuredFoodItems(config, this, plugin)) {
+            inventory.addItem(new ItemStack[]{food});
+         }
       }
 
       if (this != WIZARD) {

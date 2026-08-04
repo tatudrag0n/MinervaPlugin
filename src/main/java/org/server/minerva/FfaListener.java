@@ -425,4 +425,23 @@ final class FfaListener implements Listener {
          }
       }
    }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+   public void onTrainingVillagerDamage(EntityDamageByEntityEvent event) {
+      if (!(event.getEntity() instanceof org.bukkit.entity.Villager villager)) {
+         return;
+      }
+
+      Player attacker = null;
+      if (event.getDamager() instanceof Player player) {
+         attacker = player;
+      } else if (event.getDamager() instanceof org.bukkit.entity.Projectile projectile && projectile.getShooter() instanceof Player player) {
+         attacker = player;
+      }
+
+      if (attacker != null && this.ffa.isPlaying(attacker)) {
+         this.ffa.adjustTrainingVillagerDamage(event, attacker, villager);
+      }
+   }
+
 }
