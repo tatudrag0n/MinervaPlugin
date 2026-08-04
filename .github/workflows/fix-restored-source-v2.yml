@@ -1,0 +1,113 @@
+name: Fix restored source compilation v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-restored-source-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply semantics-preserving decompiler fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, filename):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {filename}, found {count}: {old[:100]!r}")
+              return text.replace(old, new, 1)
+
+          def replace_last(text, old, new, filename):
+              count = text.count(old)
+              if count < 1:
+                  raise SystemExit(f"Expected at least one match in {filename}, found 0: {old[:100]!r}")
+              pos = text.rfind(old)
+              return text[:pos] + new + text[pos + len(old):]
+
+          files = {
+              "src/main/java/org/server/minerva/AthleticManager.java": [
+                  ("for (String index : new ArrayList(points.getKeys(false))) {",
+                   "for (String index : new ArrayList<String>(points.getKeys(false))) {")
+              ],
+              "src/main/java/org/server/minerva/Minerva.java": [
+                  ("for (String criterion : new ArrayList(progress.getAwardedCriteria())) {",
+                   "for (String criterion : new ArrayList<String>(progress.getAwardedCriteria())) {"),
+                  ("for (String criterion : new ArrayList(progress.getRemainingCriteria())) {",
+                   "for (String criterion : new ArrayList<String>(progress.getRemainingCriteria())) {"),
+                  ("Map<Integer, ItemStack> leftovers = ((Player)sender)\n                  .getInventory()\n                  .addItem(new ItemStack[]{this.createJumpPadWand(verticalPower, horizontalPower)});\n               if (!leftovers.isEmpty()) {",
+                   "Map<Integer, ItemStack> jumpPadLeftovers = ((Player)sender)\n                  .getInventory()\n                  .addItem(new ItemStack[]{this.createJumpPadWand(verticalPower, horizontalPower)});\n               if (!jumpPadLeftovers.isEmpty()) {"),
+                  ("ItemStack wand;\n               if (args.length == 1) {\n                  wand = this.createShopWand(ShopWandType.SLOT_NORMAL);",
+                   "ItemStack slotWand;\n               if (args.length == 1) {\n                  slotWand = this.createShopWand(ShopWandType.SLOT_NORMAL);"),
+                  ("Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.serverPortalFeature.createServerWand()});\n               if (!leftovers.isEmpty()) {",
+                   "Map<Integer, ItemStack> serverLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.serverPortalFeature.createServerWand()});\n               if (!serverLeftovers.isEmpty()) {"),
+                  ("Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.createWarningWand()});\n               if (!leftovers.isEmpty()) {",
+                   "Map<Integer, ItemStack> warningLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.createWarningWand()});\n               if (!warningLeftovers.isEmpty()) {"),
+                  ("int reward = this.applyIncomeBonus(player.getUniqueId(), 10);\n               this.depositEmeralds(player.getUniqueId(), reward);\n               this.addPlayerStat(player.getUniqueId(), \"minigame-wins\", 1);\n               player.sendMessage(\"§aミニゲーム勝利報酬: +\" + this.formatNumber(reward) + \"MP\");",
+                   "int winReward = this.applyIncomeBonus(player.getUniqueId(), 10);\n               this.depositEmeralds(player.getUniqueId(), winReward);\n               this.addPlayerStat(player.getUniqueId(), \"minigame-wins\", 1);\n               player.sendMessage(\"§aミニゲーム勝利報酬: +\" + this.formatNumber(winReward) + \"MP\");"),
+                  ("case \"clear\":\n               int count = 0;",
+                   "case \"clear\":\n               int clearedCount = 0;"),
+                  ("entity.remove();\n                        count++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMinerva商人を削除しました: \" + count + \"体\");",
+                   "entity.remove();\n                        clearedCount++;\n                     }\n                  }\n               }\n\n               player.sendMessage(\"§aMinerva商人を削除しました: \" + clearedCount + \"体\");"),
+                  ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  this.acceptFriendRequest(player, target);",
+                   "OfflinePlayer acceptTarget = this.resolveKnownPlayer(player, args[1]);\n               if (acceptTarget != null) {\n                  this.acceptFriendRequest(player, acceptTarget);"),
+                  ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  this.removeFriend(player, target);",
+                   "OfflinePlayer removeTarget = this.resolveKnownPlayer(player, args[1]);\n               if (removeTarget != null) {\n                  this.removeFriend(player, removeTarget);"),
+                  ("OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);\n               if (target != null) {\n                  String message = this.sanitizeTextInput(String.join(\" \", List.of(args).subList(2, args.length)), 256);\n                  this.sendFriendChat(player, target, message);",
+                   "OfflinePlayer chatTarget = this.resolveKnownPlayer(player, args[1]);\n               if (chatTarget != null) {\n                  String message = this.sanitizeTextInput(String.join(\" \", List.of(args).subList(2, args.length)), 256);\n                  this.sendFriendChat(player, chatTarget, message);")
+              ],
+              "src/main/java/org/server/minerva/FfaManager.java": [
+                  ("for (Player player : new ArrayList(this.plugin.getServer().getOnlinePlayers())) {",
+                   "for (Player player : new ArrayList<Player>(this.plugin.getServer().getOnlinePlayers())) {"),
+                  ("int count = this.stands.removeKitStands();\n            sender.sendMessage(\"§eFFAキット防具立てを削除しました: \" + count + \"体\");",
+                   "int removedCount = this.stands.removeKitStands();\n            sender.sendMessage(\"§eFFAキット防具立てを削除しました: \" + removedCount + \"体\");"),
+                  ("for (PotionEffect effect : new ArrayList(player.getActivePotionEffects())) {",
+                   "for (PotionEffect effect : new ArrayList<PotionEffect>(player.getActivePotionEffects())) {"),
+                  ("Map var4 = this.traps.get(var3);",
+                   "Map<String, FfaManager.TrapState> var4 = this.traps.get(var3);"),
+                  ("for (FfaManager.TrapState var6 : new ArrayList(var4.values())) {",
+                   "for (FfaManager.TrapState var6 : new ArrayList<FfaManager.TrapState>(var4.values())) {")
+              ]
+          }
+
+          for filename, replacements in files.items():
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              for old, new in replacements:
+                  text = replace_once(text, old, new, filename)
+              if filename.endswith("Minerva.java"):
+                  old = "wand = this.createShopWand(type);\n               }\n\n               Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{wand});\n               if (!leftovers.isEmpty()) {"
+                  new = "slotWand = this.createShopWand(type);\n               }\n\n               Map<Integer, ItemStack> slotLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{slotWand});\n               if (!slotLeftovers.isEmpty()) {"
+                  text = replace_last(text, old, new, filename)
+              path.write_text(text, encoding="utf-8", newline="\n")
+          PY
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Verify build
+        run: mvn -B -DskipTests clean package
+
+      - name: Commit fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main/java
+          git commit -m 'Fix Vineflower compilation artifacts'
+          git push origin HEAD:main
