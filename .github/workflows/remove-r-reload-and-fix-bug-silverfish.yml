@@ -1,0 +1,55 @@
+name: Remove R reload and fix bug silverfish targeting
+
+"on":
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/remove-r-reload-and-fix-bug-silverfish.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Remove R reload implementation
+        shell: bash
+        run: |
+          if git merge-base --is-ancestor 92a5ea69694bc4348f06e36f3ff068203ebb87ea HEAD; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git revert --no-edit 92a5ea69694bc4348f06e36f3ff068203ebb87ea
+          fi
+
+      - name: Apply bug silverfish targeting fix
+        run: python3 .github/scripts/remove_r_reload_and_fix_bug_silverfish.py
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -DskipTests clean package
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main/java
+          if ! git diff --cached --quiet; then
+            git commit -m 'Prevent bug silverfish targeting owner and allow mob targets'
+          fi
+          git push origin HEAD:main
