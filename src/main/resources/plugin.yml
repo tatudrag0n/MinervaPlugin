@@ -1,5 +1,5 @@
 name: minerva
-version: 26.1.2-fixed-v14
+version: 26.1.2-fixed-v15-inventory-groups
 
 main: org.server.minerva.Minerva
 api-version: '1.21'
