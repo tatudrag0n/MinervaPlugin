@@ -1503,7 +1503,7 @@ final class FfaManager {
 
                this.refillOneShotArrowLater(player);
             } else if ("sniper".equals(kind)) {
-               this.handleAmmoCrossbow(event, player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, 2, "スナイパー", "sniper");
+               this.handleAmmoCrossbow(event, player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, 1, "スナイパー", "sniper");
             } else if ("revolver".equals(kind)) {
                this.handleAmmoCrossbow(event, player, FfaKit.CROSSBOW, this.revolverAmmo, this.revolverReloadTasks, 6, "リボルバー", "revolver");
             }

@@ -352,7 +352,7 @@ enum FfaKit {
    }
 
    int sniperCapacity(FfaConfig config) {
-      return this.amount(config, "ammo-capacity", 2);
+      return 1;
    }
 
    static FfaKit fromKey(String key) {
@@ -406,7 +406,7 @@ enum FfaKit {
          case MACE -> "メイス";
          case GAMBLER -> "金の剣";
          case WIZARD -> "ポーション / 木の剣";
-         case SNIPER -> "2発式クロスボウ";
+         case SNIPER -> "単発式クロスボウ";
          case VAMPIRE -> "鉄の剣";
          case GRAPPLER -> "素手";
          case ASSASSIN -> "致命の剣 / 毒の剣";

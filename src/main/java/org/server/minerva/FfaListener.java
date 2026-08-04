@@ -358,7 +358,7 @@ final class FfaListener implements Listener {
       this.ffa.handleDeath(player, player.getKiller());
       this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
          if (player.isOnline() && this.ffa.isPlaying(player)) {
-            this.ffa.respawn(player);
+            this.ffa.leave(player, true);
          }
       });
    }
