@@ -1521,8 +1521,12 @@ final class FfaManager {
       String label,
       String projectileKind
    ) {
-      if (!this.isDuplicateCrossbowShot(player)) {
-         FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
+      if (this.isDuplicateCrossbowShot(player)) {
+         event.setCancelled(true);
+         return;
+      }
+
+      FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
          if (session == null || session.kit != expectedKit) {
             event.setCancelled(true);
          } else if (reloadTasks.containsKey(player.getUniqueId())) {
@@ -1558,7 +1562,7 @@ final class FfaManager {
                      if (remaining > 0) {
                         this.rechargeAmmoCrossbow(player, expectedKit);
                      } else if (expectedKit == FfaKit.SNIPER) {
-                        player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
+                        this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
                      }
                   }
                });
@@ -1567,7 +1571,6 @@ final class FfaManager {
                }
             }
          }
-      }
    }
 
    private void playCrossbowShotSound(Player player, FfaKit kit) {
@@ -2001,8 +2004,8 @@ final class FfaManager {
       UUID uuid = player.getUniqueId();
       if (!reloadTasks.containsKey(uuid)) {
          this.updateAmmoCrossbowItem(player, kit, label, 0, capacity);
-         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, kit == FfaKit.SNIPER ? 0.25F : 0.8F, 0.8F);
-         long reloadTicks = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), kit == FfaKit.SNIPER ? 125L : 75L));
+         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, kit == FfaKit.SNIPER ? 0.45F : 0.7F, kit == FfaKit.SNIPER ? 0.55F : 0.65F);
+         long reloadTicks = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), kit == FfaKit.SNIPER ? 60L : 75L));
          BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
             reloadTasks.remove(uuid);
             if (player.isOnline() && this.isPlaying(player)) {
@@ -2021,12 +2024,30 @@ final class FfaManager {
             }
          }, reloadTicks);
          reloadTasks.put(uuid, task);
+         this.playReloadProgressSound(player, kit, reloadTasks, reloadTicks, 10L);
          if (kit == FfaKit.SNIPER) {
             player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, (int)Math.min(2147483647L, reloadTicks + 5L), 3, false, false, true));
          }
 
          player.sendActionBar(Component.text(label + " リロード中...", NamedTextColor.RED));
       }
+   }
+
+   private void playReloadProgressSound(Player player, FfaKit kit, Map<UUID, BukkitTask> reloadTasks, long totalTicks, long elapsedTicks) {
+      UUID uuid = player.getUniqueId();
+      if (elapsedTicks >= totalTicks) {
+         return;
+      }
+
+      this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
+         FfaManager.FfaSession session = this.sessions.get(uuid);
+         if (player.isOnline() && session != null && session.kit == kit && reloadTasks.containsKey(uuid)) {
+            float progress = Math.min(1.0F, elapsedTicks / (float)Math.max(1L, totalTicks));
+            float pitch = (kit == FfaKit.SNIPER ? 0.5F : 0.62F) + progress * 0.28F;
+            player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_MIDDLE, kit == FfaKit.SNIPER ? 0.35F : 0.55F, pitch);
+            this.playReloadProgressSound(player, kit, reloadTasks, totalTicks, elapsedTicks + 10L);
+         }
+      }, 10L);
    }
 
    private void rechargeAmmoCrossbow(Player player, FfaKit kit) {
@@ -2044,8 +2065,13 @@ final class FfaManager {
       if (crossbow != null) {
          ItemMeta meta = crossbow.getItemMeta();
          meta.displayName(Component.text((kit == FfaKit.SNIPER ? "§8" : "§d") + label + " §7[" + ammo + "/" + capacity + "]"));
-         if (meta instanceof CrossbowMeta crossbowMeta && ammo <= 0) {
-            crossbowMeta.setChargedProjectiles(List.of());
+         if (meta instanceof CrossbowMeta crossbowMeta) {
+            if (kit == FfaKit.SNIPER) {
+               crossbowMeta.removeEnchant(Enchantment.MULTISHOT);
+            }
+            if (ammo <= 0) {
+               crossbowMeta.setChargedProjectiles(List.of());
+            }
             crossbow.setItemMeta(crossbowMeta);
          } else {
             crossbow.setItemMeta(meta);

@@ -411,8 +411,8 @@ ffa:
       icon: "crossbow"
       armor-tier: "leather"
       armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      ammo-capacity: 2
-      reload-ticks: 125
+      ammo-capacity: 1
+      reload-ticks: 60
       damage-multiplier: 3.0
       crossbow-enchantments: [ "piercing:4" ]
       food-items: [ "baked_potato:1" ]
