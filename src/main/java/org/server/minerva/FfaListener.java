@@ -341,6 +341,28 @@ final class FfaListener implements Listener {
       return false;
    }
 
+   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+   public void onLethalFfaDamage(EntityDamageEvent event) {
+      if (!(event.getEntity() instanceof Player player) || !this.ffa.isPlaying(player) || event.isCancelled()) {
+         return;
+      }
+
+      double remainingHealth = player.getHealth() + player.getAbsorptionAmount();
+      if (event.getFinalDamage() < remainingHealth) {
+         return;
+      }
+
+      event.setCancelled(true);
+      player.setHealth(Math.max(1.0, player.getHealth()));
+      player.setAbsorptionAmount(0.0);
+      this.ffa.handleDeath(player, player.getKiller());
+      this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+         if (player.isOnline() && this.ffa.isPlaying(player)) {
+            this.ffa.respawn(player);
+         }
+      });
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST)
    public void onDeath(PlayerDeathEvent var1) {
       Player var2 = var1.getEntity();

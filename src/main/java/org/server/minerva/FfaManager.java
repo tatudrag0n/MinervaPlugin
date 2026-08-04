@@ -1562,7 +1562,7 @@ final class FfaManager {
                      if (remaining > 0) {
                         this.rechargeAmmoCrossbow(player, expectedKit);
                      } else if (expectedKit == FfaKit.SNIPER) {
-                        this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
+                        player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
                      }
                   }
                });
