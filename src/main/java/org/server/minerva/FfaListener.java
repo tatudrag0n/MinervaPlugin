@@ -183,8 +183,16 @@ final class FfaListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onFoodLevelChange(FoodLevelChangeEvent event) {
-      if (event.getEntity() instanceof Player player
-         && !"survival".equalsIgnoreCase(player.getWorld().getName())
+      if (!(event.getEntity() instanceof Player player)) {
+         return;
+      }
+
+      if (this.ffa.isPlaying(player)) {
+         event.setCancelled(false);
+         return;
+      }
+
+      if (!"survival".equalsIgnoreCase(player.getWorld().getName())
          && event.getFoodLevel() < player.getFoodLevel()) {
          event.setCancelled(true);
       }
