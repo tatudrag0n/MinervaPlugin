@@ -1,0 +1,101 @@
+name: Fix FFA death state and sniper manual reload
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-ffa-death-and-sniper-manual-reload.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          manager = Path('src/main/java/org/server/minerva/FfaManager.java')
+          text = manager.read_text(encoding='utf-8')
+
+          old = '''                     if (remaining > 0) {
+                        this.rechargeAmmoCrossbow(player, expectedKit);
+                     } else if (expectedKit == FfaKit.SNIPER) {
+                        this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
+                     }'''
+          new = '''                     if (remaining > 0) {
+                        this.rechargeAmmoCrossbow(player, expectedKit);
+                     } else if (expectedKit == FfaKit.SNIPER) {
+                        player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
+                     }'''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('Sniper auto-reload block was not found')
+          manager.write_text(text, encoding='utf-8', newline='\n')
+
+          listener = Path('src/main/java/org/server/minerva/FfaListener.java')
+          text = listener.read_text(encoding='utf-8')
+          marker = '''   @EventHandler(priority = EventPriority.HIGHEST)
+   public void onDeath(PlayerDeathEvent var1) {'''
+          insert = '''   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+   public void onLethalFfaDamage(EntityDamageEvent event) {
+      if (!(event.getEntity() instanceof Player player) || !this.ffa.isPlaying(player) || event.isCancelled()) {
+         return;
+      }
+
+      double remainingHealth = player.getHealth() + player.getAbsorptionAmount();
+      if (event.getFinalDamage() < remainingHealth) {
+         return;
+      }
+
+      event.setCancelled(true);
+      player.setHealth(Math.max(1.0, player.getHealth()));
+      player.setAbsorptionAmount(0.0);
+      this.ffa.handleDeath(player, player.getKiller());
+      this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+         if (player.isOnline() && this.ffa.isPlaying(player)) {
+            this.ffa.respawn(player);
+         }
+      });
+   }
+
+'''
+          if 'public void onLethalFfaDamage(EntityDamageEvent event)' not in text:
+              if marker not in text:
+                  raise SystemExit('Death handler marker was not found')
+              text = text.replace(marker, insert + marker, 1)
+          listener.write_text(text, encoding='utf-8', newline='\n')
+          PY
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -DskipTests clean package
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main/java
+          if git diff --cached --quiet; then
+            echo 'No source changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Fix FFA death-state lock and require manual sniper reload'
+          git push origin HEAD:main
