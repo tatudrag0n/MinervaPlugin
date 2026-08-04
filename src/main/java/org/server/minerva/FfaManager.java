@@ -772,12 +772,6 @@ final class FfaManager {
 
       UUID ownerId = owner.getUniqueId();
       List<UUID> owned = this.summonedMobs.computeIfAbsent(ownerId, ignored -> new ArrayList<>());
-      int maxOwned = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.NECROMANCER, "max-summons"), 5));
-
-      while (owned.size() >= maxOwned) {
-         this.removeSummonEntity(owned.remove(0));
-      }
-
       owned.add(entity.getUniqueId());
       this.summonOwners.put(entity.getUniqueId(), ownerId);
       BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.removeSummonEntity(entity.getUniqueId()), 600L);

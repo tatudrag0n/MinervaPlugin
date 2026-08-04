@@ -69,6 +69,16 @@ final class FfaListener implements Listener {
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onFallDamage(EntityDamageEvent event) {
+      if (event.getEntity() instanceof Player player
+         && this.ffa.isPlaying(player)
+         && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+         event.setCancelled(true);
+         player.setFallDistance(0.0F);
+      }
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onDamage(EntityDamageByEntityEvent event) {
       if (this.ffa.stands().isKitSelector(event.getEntity())) {
          event.setCancelled(true);

@@ -451,7 +451,6 @@ ffa:
       icon: "zombie_spawn_egg"
       armor-tier: "leather"
       armor: { helmet: "golden_helmet", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }
-      max-summons: 5
       food-items: [ "rotten_flesh:1" ]
       items: []
       potions: []
