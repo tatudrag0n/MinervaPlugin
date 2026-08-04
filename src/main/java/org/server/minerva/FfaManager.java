@@ -147,7 +147,7 @@ final class FfaManager {
    void shutdown() {
       this.fieldItems.shutdown();
 
-      for (Player player : new ArrayList(this.plugin.getServer().getOnlinePlayers())) {
+      for (Player player : new ArrayList<Player>(this.plugin.getServer().getOnlinePlayers())) {
          if (this.isPlaying(player)) {
             this.leave(player, false);
          }
@@ -277,8 +277,8 @@ final class FfaManager {
                return true;
             }
 
-            int count = this.stands.removeKitStands();
-            sender.sendMessage("§eFFAキット防具立てを削除しました: " + count + "体");
+            int removedCount = this.stands.removeKitStands();
+            sender.sendMessage("§eFFAキット防具立てを削除しました: " + removedCount + "体");
             break;
          case "reload":
             if (!this.hasAdmin(sender)) {
@@ -2274,7 +2274,7 @@ final class FfaManager {
    }
 
    private void clearTemporaryState(Player player) {
-      for (PotionEffect effect : new ArrayList(player.getActivePotionEffects())) {
+      for (PotionEffect effect : new ArrayList<PotionEffect>(player.getActivePotionEffects())) {
          player.removePotionEffect(effect.getType());
       }
 
@@ -2418,9 +2418,9 @@ final class FfaManager {
    void handleTrapStep(Player var1) {
       if (var1 != null && this.isPlaying(var1)) {
          for (UUID var3 : new ArrayList<>(this.traps.keySet())) {
-            Map var4 = this.traps.get(var3);
+            Map<String, FfaManager.TrapState> var4 = this.traps.get(var3);
             if (var4 != null) {
-               for (FfaManager.TrapState var6 : new ArrayList(var4.values())) {
+               for (FfaManager.TrapState var6 : new ArrayList<FfaManager.TrapState>(var4.values())) {
                   if (var1.getWorld().equals(var6.location().getWorld())
                      && var1.getLocation().distanceSquared(var6.location().clone().add(0.5, 0.0, 0.5)) <= 1.2) {
                      var4.remove(var6.type());

@@ -3053,7 +3053,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
          if (this.shouldTrackAdvancement(advancement)) {
             AdvancementProgress progress = player.getAdvancementProgress(advancement);
 
-            for (String criterion : new ArrayList(progress.getAwardedCriteria())) {
+            for (String criterion : new ArrayList<String>(progress.getAwardedCriteria())) {
                progress.revokeCriteria(criterion);
             }
          }
@@ -5106,7 +5106,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                } else if (completed.contains(key)) {
                   changed |= rewarded.add(key);
 
-                  for (String criterion : new ArrayList(progress.getRemainingCriteria())) {
+                  for (String criterion : new ArrayList<String>(progress.getRemainingCriteria())) {
                      progress.awardCriteria(criterion);
                   }
 
@@ -5653,10 +5653,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               Map<Integer, ItemStack> leftovers = ((Player)sender)
+               Map<Integer, ItemStack> jumpPadLeftovers = ((Player)sender)
                   .getInventory()
                   .addItem(new ItemStack[]{this.createJumpPadWand(verticalPower, horizontalPower)});
-               if (!leftovers.isEmpty()) {
+               if (!jumpPadLeftovers.isEmpty()) {
                   sender.sendMessage("§cインベントリに空きがありません。");
                   return true;
                }
@@ -5669,9 +5669,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               ItemStack wand;
+               ItemStack slotWand;
                if (args.length == 1) {
-                  wand = this.createShopWand(ShopWandType.SLOT_NORMAL);
+                  slotWand = this.createShopWand(ShopWandType.SLOT_NORMAL);
                } else {
                   if (args.length < 2) {
                      sender.sendMessage("§c/mva slotwand <easy|normal|hard|expert>");
@@ -5684,11 +5684,11 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                      return true;
                   }
 
-                  wand = this.createShopWand(type);
+                  slotWand = this.createShopWand(type);
                }
 
-               Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{wand});
-               if (!leftovers.isEmpty()) {
+               Map<Integer, ItemStack> slotLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{slotWand});
+               if (!slotLeftovers.isEmpty()) {
                   sender.sendMessage("§cインベントリに空きがありません。");
                   return true;
                }
@@ -5701,8 +5701,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               Map<Integer, ItemStack> leftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.serverPortalFeature.createServerWand()});
-               if (!leftovers.isEmpty()) {
+               Map<Integer, ItemStack> serverLeftovers = ((Player)sender).getInventory().addItem(new ItemStack[]{this.serverPortalFeature.createServerWand()});
+               if (!serverLeftovers.isEmpty()) {
                   sender.sendMessage("§cインベントリに空きがありません。");
                   return true;
                }
@@ -5970,10 +5970,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return;
                }
 
-               int reward = this.applyIncomeBonus(player.getUniqueId(), 10);
-               this.depositEmeralds(player.getUniqueId(), reward);
+               int winReward = this.applyIncomeBonus(player.getUniqueId(), 10);
+               this.depositEmeralds(player.getUniqueId(), winReward);
                this.addPlayerStat(player.getUniqueId(), "minigame-wins", 1);
-               player.sendMessage("§aミニゲーム勝利報酬: +" + this.formatNumber(reward) + "MP");
+               player.sendMessage("§aミニゲーム勝利報酬: +" + this.formatNumber(winReward) + "MP");
                break;
             case "unlock":
                if (args.length < 4) {
@@ -6088,18 +6088,18 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                player.sendMessage("§a商人の販売品を再抽選しました: " + count + "体");
                break;
             case "clear":
-               int count = 0;
+               int clearedCount = 0;
 
                for (World world : Bukkit.getWorlds()) {
                   for (Entity entity : world.getEntities()) {
                      if (this.isMinervaMerchant(entity)) {
                         entity.remove();
-                        count++;
+                        clearedCount++;
                      }
                   }
                }
 
-               player.sendMessage("§aMinerva商人を削除しました: " + count + "体");
+               player.sendMessage("§aMinerva商人を削除しました: " + clearedCount + "体");
                break;
             default:
                player.sendMessage("§c/minerva merchant spawn|reroll|clear");
@@ -6235,9 +6235,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-               if (target != null) {
-                  this.acceptFriendRequest(player, target);
+               OfflinePlayer acceptTarget = this.resolveKnownPlayer(player, args[1]);
+               if (acceptTarget != null) {
+                  this.acceptFriendRequest(player, acceptTarget);
                }
                break;
             case "remove":
@@ -6246,9 +6246,9 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-               if (target != null) {
-                  this.removeFriend(player, target);
+               OfflinePlayer removeTarget = this.resolveKnownPlayer(player, args[1]);
+               if (removeTarget != null) {
+                  this.removeFriend(player, removeTarget);
                }
                break;
             case "chat":
@@ -6257,10 +6257,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   return true;
                }
 
-               OfflinePlayer target = this.resolveKnownPlayer(player, args[1]);
-               if (target != null) {
+               OfflinePlayer chatTarget = this.resolveKnownPlayer(player, args[1]);
+               if (chatTarget != null) {
                   String message = this.sanitizeTextInput(String.join(" ", List.of(args).subList(2, args.length)), 256);
-                  this.sendFriendChat(player, target, message);
+                  this.sendFriendChat(player, chatTarget, message);
                }
                break;
             default:

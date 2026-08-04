@@ -245,7 +245,7 @@ final class AthleticManager implements Listener {
       } else {
          Block current = player.getLocation().getBlock();
 
-         for (String index : new ArrayList(points.getKeys(false))) {
+         for (String index : new ArrayList<String>(points.getKeys(false))) {
             String world = points.getString(index + ".world");
             if (world != null
                && world.equals(current.getWorld().getName())
