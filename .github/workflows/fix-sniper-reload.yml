@@ -1,0 +1,97 @@
+name: Fix sniper and reload feedback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-sniper-reload.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply sniper and reload fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          java_path = Path('src/main/java/org/server/minerva/FfaManager.java')
+          text = java_path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '   ) {\n      if (!this.isDuplicateCrossbowShot(player)) {\n         FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());',
+                  '   ) {\n      if (this.isDuplicateCrossbowShot(player)) {\n         event.setCancelled(true);\n         return;\n      }\n\n      FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());'
+              ),
+              (
+                  '            }\n         }\n      }\n   }\n\n   private void playCrossbowShotSound',
+                  '            }\n         }\n   }\n\n   private void playCrossbowShotSound'
+              ),
+              (
+                  '                     if (remaining > 0) {\n                        this.rechargeAmmoCrossbow(player, expectedKit);\n                     } else if (expectedKit == FfaKit.SNIPER) {\n                        player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));\n                     }',
+                  '                     if (remaining > 0) {\n                        this.rechargeAmmoCrossbow(player, expectedKit);\n                     } else if (expectedKit == FfaKit.SNIPER) {\n                        this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);\n                     }'
+              ),
+              (
+                  '         this.updateAmmoCrossbowItem(player, kit, label, 0, capacity);\n         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, kit == FfaKit.SNIPER ? 0.25F : 0.8F, 0.8F);\n         long reloadTicks = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), kit == FfaKit.SNIPER ? 125L : 75L));',
+                  '         this.updateAmmoCrossbowItem(player, kit, label, 0, capacity);\n         player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_START, kit == FfaKit.SNIPER ? 0.45F : 0.7F, kit == FfaKit.SNIPER ? 0.55F : 0.65F);\n         long reloadTicks = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(kit, "reload-ticks"), kit == FfaKit.SNIPER ? 60L : 75L));'
+              ),
+              (
+                  '         reloadTasks.put(uuid, task);\n         if (kit == FfaKit.SNIPER) {',
+                  '         reloadTasks.put(uuid, task);\n         this.playReloadProgressSound(player, kit, reloadTasks, reloadTicks, 10L);\n         if (kit == FfaKit.SNIPER) {'
+              ),
+              (
+                  '   private void rechargeAmmoCrossbow(Player player, FfaKit kit) {',
+                  '   private void playReloadProgressSound(Player player, FfaKit kit, Map<UUID, BukkitTask> reloadTasks, long totalTicks, long elapsedTicks) {\n      UUID uuid = player.getUniqueId();\n      if (elapsedTicks >= totalTicks) {\n         return;\n      }\n\n      this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {\n         FfaManager.FfaSession session = this.sessions.get(uuid);\n         if (player.isOnline() && session != null && session.kit == kit && reloadTasks.containsKey(uuid)) {\n            float progress = Math.min(1.0F, elapsedTicks / (float)Math.max(1L, totalTicks));\n            float pitch = (kit == FfaKit.SNIPER ? 0.5F : 0.62F) + progress * 0.28F;\n            player.getWorld().playSound(player.getLocation(), Sound.ITEM_CROSSBOW_LOADING_MIDDLE, kit == FfaKit.SNIPER ? 0.35F : 0.55F, pitch);\n            this.playReloadProgressSound(player, kit, reloadTasks, totalTicks, elapsedTicks + 10L);\n         }\n      }, 10L);\n   }\n\n   private void rechargeAmmoCrossbow(Player player, FfaKit kit) {'
+              ),
+              (
+                  '         ItemMeta meta = crossbow.getItemMeta();\n         meta.displayName(Component.text((kit == FfaKit.SNIPER ? "§8" : "§d") + label + " §7[" + ammo + "/" + capacity + "]"));\n         if (meta instanceof CrossbowMeta crossbowMeta && ammo <= 0) {\n            crossbowMeta.setChargedProjectiles(List.of());\n            crossbow.setItemMeta(crossbowMeta);\n         } else {\n            crossbow.setItemMeta(meta);\n         }',
+                  '         ItemMeta meta = crossbow.getItemMeta();\n         meta.displayName(Component.text((kit == FfaKit.SNIPER ? "§8" : "§d") + label + " §7[" + ammo + "/" + capacity + "]"));\n         if (meta instanceof CrossbowMeta crossbowMeta) {\n            if (kit == FfaKit.SNIPER) {\n               crossbowMeta.removeEnchant(Enchantment.MULTISHOT);\n            }\n            if (ammo <= 0) {\n               crossbowMeta.setChargedProjectiles(List.of());\n            }\n            crossbow.setItemMeta(crossbowMeta);\n         } else {\n            crossbow.setItemMeta(meta);\n         }'
+              )
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected one Java match, found {count}: {old[:120]!r}')
+              text = text.replace(old, new, 1)
+
+          java_path.write_text(text, encoding='utf-8', newline='\n')
+
+          config_path = Path('src/main/resources/config.yml')
+          config = config_path.read_text(encoding='utf-8')
+          old = '    sniper:\n      display-name: "§8スナイパー"\n      icon: "crossbow"\n      armor-tier: "leather"\n      armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }\n      ammo-capacity: 2\n      reload-ticks: 125'
+          new = '    sniper:\n      display-name: "§8スナイパー"\n      icon: "crossbow"\n      armor-tier: "leather"\n      armor: { helmet: "none", chestplate: "leather_chestplate", leggings: "none", boots: "leather_boots" }\n      ammo-capacity: 1\n      reload-ticks: 60'
+          count = config.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected one config match, found {count}')
+          config_path.write_text(config.replace(old, new, 1), encoding='utf-8', newline='\n')
+          PY
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -DskipTests clean package
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/main/java/org/server/minerva/FfaManager.java src/main/resources/config.yml
+          git commit -m 'Simplify sniper reload and add reload audio feedback'
+          git push origin HEAD:main
