@@ -564,8 +564,9 @@ final class FfaManager {
 
          return true;
       } else if ("sniper".equals(kind) && session.kit == FfaKit.SNIPER) {
-         if (this.sniperAmmo.getOrDefault(player.getUniqueId(), 1) <= 0) {
-            player.sendActionBar(Component.text("Rでリロード", NamedTextColor.YELLOW));
+         int capacity = Math.max(1, session.kit.sniperCapacity(this.config));
+         if (!this.sniperReloadTasks.containsKey(player.getUniqueId())) {
+            this.startCrossbowReload(player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, capacity, "スナイパー");
          }
 
          return true;
@@ -1534,7 +1535,11 @@ final class FfaManager {
             int ammo = Math.max(0, ammoMap.getOrDefault(player.getUniqueId(), capacity));
             if (ammo <= 0) {
                event.setCancelled(true);
-               player.sendActionBar(Component.text("Rでリロード", NamedTextColor.YELLOW));
+               if (expectedKit == FfaKit.SNIPER) {
+                  player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
+               } else {
+                  this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
+               }
             } else {
                ammoMap.put(player.getUniqueId(), --ammo);
                if (event.getProjectile() instanceof Entity projectile) {
@@ -1551,7 +1556,7 @@ final class FfaManager {
                      if (remaining > 0) {
                         this.rechargeAmmoCrossbow(player, expectedKit);
                      } else if (expectedKit == FfaKit.SNIPER) {
-                        player.sendActionBar(Component.text("Rでリロード", NamedTextColor.YELLOW));
+                        player.sendActionBar(Component.text("右クリックでリロード", NamedTextColor.YELLOW));
                      }
                   }
                });
@@ -2392,85 +2397,42 @@ final class FfaManager {
       }
    }
 
-   boolean handleEmptyCrossbowInteract(PlayerInteractEvent event) {
-      if (!event.getAction().isRightClick()) {
+   boolean handleEmptyCrossbowInteract(PlayerInteractEvent var1) {
+      if (!var1.getAction().isRightClick()) {
          return false;
       }
 
-      Player player = event.getPlayer();
-      FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
-      if (session == null || (session.kit != FfaKit.CROSSBOW && session.kit != FfaKit.SNIPER)) {
-         return false;
-      }
-
-      ItemStack item = event.getItem();
-      if (!this.isFfaItem(item)) {
-         return false;
-      }
-
-      String kind = this.itemKind(item);
-      if (session.kit == FfaKit.CROSSBOW && "revolver".equals(kind)) {
-         int capacity = Math.max(1, session.kit.revolverCapacity(this.config));
-         if (this.revolverAmmo.getOrDefault(player.getUniqueId(), capacity) <= 0) {
-            event.setCancelled(true);
-            player.sendActionBar(Component.text("Rでリロード", NamedTextColor.YELLOW));
-            return true;
+      Player var2 = var1.getPlayer();
+      FfaManager.FfaSession var3 = this.sessions.get(var2.getUniqueId());
+      if (var3 != null && (var3.kit == FfaKit.CROSSBOW || var3.kit == FfaKit.SNIPER)) {
+         ItemStack var4 = var1.getItem();
+         if (!this.isFfaItem(var4)) {
+            return false;
          }
-      }
 
-      if (session.kit == FfaKit.SNIPER && "sniper".equals(kind)) {
-         int capacity = Math.max(1, session.kit.sniperCapacity(this.config));
-         if (this.sniperAmmo.getOrDefault(player.getUniqueId(), capacity) <= 0) {
-            event.setCancelled(true);
-            player.sendActionBar(Component.text("Rでリロード", NamedTextColor.YELLOW));
-            return true;
+         String var5 = this.itemKind(var4);
+         if (var3.kit == FfaKit.CROSSBOW && "revolver".equals(var5)) {
+            int var6 = var3.kit.revolverCapacity(this.config);
+            if (this.revolverAmmo.getOrDefault(var2.getUniqueId(), var6) <= 0) {
+               var1.setCancelled(true);
+               this.startCrossbowReload(var2, FfaKit.CROSSBOW, this.revolverAmmo, this.revolverReloadTasks, var6, "リボルバー");
+               return true;
+            }
          }
-      }
 
-      return false;
-   }
+         if (var3.kit == FfaKit.SNIPER && "sniper".equals(var5)) {
+            int var7 = var3.kit.sniperCapacity(this.config);
+            if (this.sniperAmmo.getOrDefault(var2.getUniqueId(), var7) <= 0) {
+               var1.setCancelled(true);
+               this.startCrossbowReload(var2, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, var7, "スナイパー");
+               return true;
+            }
+         }
 
-   boolean handleReloadKey(Player player) {
-      if (player == null || !this.isPlaying(player)) {
+         return false;
+      } else {
          return false;
       }
-
-      FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
-      if (session == null) {
-         return false;
-      }
-
-      ItemStack held = player.getInventory().getItemInMainHand();
-      if (!this.isFfaItem(held)) {
-         return false;
-      }
-
-      UUID uuid = player.getUniqueId();
-      if (session.kit == FfaKit.CROSSBOW && "revolver".equals(this.itemKind(held))) {
-         int capacity = Math.max(1, session.kit.revolverCapacity(this.config));
-         if (this.revolverReloadTasks.containsKey(uuid)) {
-            player.sendActionBar(Component.text("リロード中", NamedTextColor.RED));
-         } else if (this.revolverAmmo.getOrDefault(uuid, capacity) >= capacity) {
-            player.sendActionBar(Component.text("リボルバーは装填済み", NamedTextColor.GRAY));
-         } else {
-            this.startCrossbowReload(player, FfaKit.CROSSBOW, this.revolverAmmo, this.revolverReloadTasks, capacity, "リボルバー");
-         }
-         return true;
-      }
-
-      if (session.kit == FfaKit.SNIPER && "sniper".equals(this.itemKind(held))) {
-         int capacity = 1;
-         if (this.sniperReloadTasks.containsKey(uuid)) {
-            player.sendActionBar(Component.text("リロード中", NamedTextColor.RED));
-         } else if (this.sniperAmmo.getOrDefault(uuid, capacity) >= capacity) {
-            player.sendActionBar(Component.text("スナイパーは装填済み", NamedTextColor.GRAY));
-         } else {
-            this.startCrossbowReload(player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, capacity, "スナイパー");
-         }
-         return true;
-      }
-
-      return false;
    }
 
    void handleTrapStep(Player var1) {

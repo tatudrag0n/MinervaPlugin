@@ -37,7 +37,6 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPickupArrowEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.projectiles.ProjectileSource;
@@ -415,13 +414,6 @@ final class FfaListener implements Listener {
                || var1.getFrom().getBlockZ() != var1.getTo().getBlockZ()
          )) {
          this.ffa.handleTrapStep(var1.getPlayer());
-      }
-   }
-
-   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-   public void onReloadKey(PlayerSwapHandItemsEvent event) {
-      if (this.ffa.handleReloadKey(event.getPlayer())) {
-         event.setCancelled(true);
       }
    }
 
