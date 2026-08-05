@@ -104,6 +104,7 @@ final class FfaManager {
    private final Map<UUID, Set<UUID>> trackedTridents = new HashMap<>();
    private final Set<UUID> gamblerSelfDamage = new HashSet<>();
    private final Set<UUID> crusherExplosionDamage = new HashSet<>();
+   private final Map<UUID, Long> crusherExplosionAttemptTick = new HashMap<>();
    private final Map<UUID, Double> vampireDamage = new HashMap<>();
    private final Map<UUID, FfaManager.KillRewardState> killRewardStates = new HashMap<>();
    private final Map<UUID, List<UUID>> summonedMobs = new HashMap<>();
@@ -172,6 +173,7 @@ final class FfaManager {
       this.restoreAllTraps();
       this.damageCredits.clear();
       this.deathLeaveRestores.clear();
+      this.crusherExplosionAttemptTick.clear();
    }
 
    private void cancelTasks(Map<UUID, BukkitTask> tasks) {
@@ -1405,6 +1407,13 @@ final class FfaManager {
       if (owner == null || target == null || this.crusherExplosionDamage.contains(owner.getUniqueId())) {
          return;
       }
+
+      long currentTick = this.plugin.getServer().getCurrentTick();
+      Long previousAttempt = this.crusherExplosionAttemptTick.put(owner.getUniqueId(), currentTick);
+      if (previousAttempt != null && previousAttempt == currentTick) {
+         return;
+      }
+
       double roll = ThreadLocalRandom.current().nextDouble();
       double damage;
       double radius;
@@ -1437,16 +1446,21 @@ final class FfaManager {
             if (!(living instanceof Player) && !(living instanceof org.bukkit.entity.Husk)) {
                continue;
             }
+
             double distance = origin.distance(living.getLocation().clone().add(0.0, 1.0, 0.0));
             double dealt = Math.max(1.0, damage * Math.max(0.25, 1.0 - distance / Math.max(1.0, radius)));
             if (living instanceof Player player) {
                this.recordDamage(owner, player);
+               living.damage(dealt, owner);
+            } else if (living instanceof org.bukkit.entity.Husk husk) {
+               husk.setNoDamageTicks(0);
+               husk.setHealth(Math.max(0.0, husk.getHealth() - dealt));
             }
-            living.damage(dealt, owner);
          }
       } finally {
          this.crusherExplosionDamage.remove(owner.getUniqueId());
       }
+
       owner.getWorld().spawnParticle(Particle.EXPLOSION, origin, damage >= 16.0 ? 4 : 2, 0.8, 0.5, 0.8, 0.05);
       owner.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, damage >= 16.0 ? 1.5F : 0.9F, damage >= 16.0 ? 0.6F : 1.2F);
    }
