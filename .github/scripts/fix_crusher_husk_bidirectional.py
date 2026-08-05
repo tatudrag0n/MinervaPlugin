@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered repair for bidirectional Crusher testing against ordinary Husks.
 manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
 listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
 manager = manager_path.read_text(encoding='utf-8')
@@ -21,49 +22,31 @@ def method_bounds(text: str, signature: str):
                 return start, i + 1
     raise SystemExit(f'unclosed method: {signature}')
 
-# Shared, explicit Crusher roll for training targets.
-# 50% miss; otherwise 4/8/16/32 damage with the intended weighted probabilities.
 helper = '''
    private double rollTrainingCrusherExplosionDamage() {
       int roll = ThreadLocalRandom.current().nextInt(16);
-      if (roll < 8) {
-         return 0.0;
-      }
-      if (roll < 12) {
-         return 4.0;
-      }
-      if (roll < 14) {
-         return 8.0;
-      }
-      if (roll == 14) {
-         return 16.0;
-      }
+      if (roll < 8) return 0.0;
+      if (roll < 12) return 4.0;
+      if (roll < 14) return 8.0;
+      if (roll == 14) return 16.0;
       return 32.0;
    }
 
    private void applyTrainingCrusherExplosion(Player crusher, org.bukkit.entity.Husk husk, Location center) {
       double damage = this.rollTrainingCrusherExplosionDamage();
-      if (damage <= 0.0 || crusher == null || husk == null || husk.isDead()) {
-         return;
-      }
-
+      if (damage <= 0.0 || crusher == null || husk == null || husk.isDead()) return;
       World world = center.getWorld();
       if (world != null) {
          world.spawnParticle(Particle.EXPLOSION, center.clone().add(0.0, 1.0, 0.0), 2);
          world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
       }
-
-      // Direct health subtraction avoids the FFA/non-FFA damage gate cancelling the debug damage.
       husk.setNoDamageTicks(0);
-      double remaining = Math.max(0.0, husk.getHealth() - damage);
-      husk.setHealth(remaining);
+      husk.setHealth(Math.max(0.0, husk.getHealth() - damage));
       crusher.sendActionBar(Component.text("クラッシャー爆発 " + (int)damage + "ダメージ", NamedTextColor.GOLD));
    }
 
    void handleTrainingHuskAttack(EntityDamageByEntityEvent event, org.bukkit.entity.Husk husk, Player victim) {
-      if (event.isCancelled() || husk == null || victim == null || !this.isPlaying(victim)) {
-         return;
-      }
+      if (event.isCancelled() || husk == null || victim == null || !this.isPlaying(victim)) return;
       FfaManager.FfaSession session = this.sessions.get(victim.getUniqueId());
       if (session != null && session.kit == FfaKit.CRUSHER) {
          this.applyTrainingCrusherExplosion(victim, husk, victim.getLocation());
@@ -76,7 +59,6 @@ if insert_at < 0:
 if 'rollTrainingCrusherExplosionDamage()' not in manager:
     manager = manager[:insert_at] + helper + manager[insert_at:]
 
-# Replace the fake unconditional particle-only Crusher branch in the Husk outgoing adapter.
 old = '''      if (session.kit == FfaKit.CRUSHER) {
          husk.getWorld().spawnParticle(Particle.EXPLOSION, husk.getLocation().add(0.0, 1.0, 0.0), 2);
       }
@@ -90,7 +72,6 @@ if old in manager:
 elif new not in manager:
     raise SystemExit('training Husk Crusher branch not found')
 
-# The old listener only handled Husk as the victim. Add the reverse direction: Husk -> FFA player.
 needle = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onTrainingHuskDamage(EntityDamageByEntityEvent event) {
 '''
