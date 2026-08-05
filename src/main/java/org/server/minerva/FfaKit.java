@@ -263,6 +263,8 @@ enum FfaKit {
          default:
             break;
          case ASSASSIN:
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "fatal_dagger", Material.GOLDEN_SWORD, "§4致命の短剣", 1, Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "poison_sword", Material.STONE_SWORD, "§2毒の短剣", 1, Map.of())});
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "invisibility_potion", Material.POTION, "§7透明化ポーション", 1, Map.of())});
             break;
          case NECROMANCER:

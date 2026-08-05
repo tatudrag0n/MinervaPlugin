@@ -427,8 +427,8 @@ final class FfaListener implements Listener {
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-   public void onTrainingVillagerDamage(EntityDamageByEntityEvent event) {
-      if (!(event.getEntity() instanceof org.bukkit.entity.Villager villager)) {
+   public void onTrainingHuskDamage(EntityDamageByEntityEvent event) {
+      if (!(event.getEntity() instanceof org.bukkit.entity.Husk husk)) {
          return;
       }
 
@@ -440,7 +440,7 @@ final class FfaListener implements Listener {
       }
 
       if (attacker != null && this.ffa.isPlaying(attacker)) {
-         this.ffa.adjustTrainingVillagerDamage(event, attacker, villager);
+         this.ffa.adjustTrainingHuskDamage(event, attacker, husk);
       }
    }
 

@@ -601,19 +601,23 @@ final class FfaManager {
          return false;
       } else {
          if ("wind_charge".equals(kind) && session.kit == FfaKit.MACE) {
+            if (player.hasCooldown(Material.WIND_CHARGE)) {
+               return true;
+            }
             player.setCooldown(Material.WIND_CHARGE, 40);
             ItemStack restoredWindCharge = item.clone();
             restoredWindCharge.setAmount(1);
-            this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
+            this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
                if (player.isOnline() && this.isPlaying(player)) {
                   FfaManager.FfaSession current = this.sessions.get(player.getUniqueId());
-                  if (current != null && current.kit == FfaKit.MACE && this.countFfaItem(player, "wind_charge") <= 0) {
+                  if (current != null && current.kit == FfaKit.MACE) {
+                     this.removeFfaItems(player, "wind_charge");
                      this.tagOwner(restoredWindCharge, player.getUniqueId());
-                     player.getInventory().addItem(new ItemStack[]{restoredWindCharge});
+                     player.getInventory().addItem(restoredWindCharge);
                      player.updateInventory();
                   }
                }
-            }, 2L);
+            });
          }
 
          return false;
@@ -1193,6 +1197,19 @@ final class FfaManager {
    void handleEntityTarget(EntityTargetLivingEntityEvent event) {
       Entity entity = event.getEntity();
       String kind = entity.getPersistentDataContainer().get(this.entityKindKey, PersistentDataType.STRING);
+      if ("summon".equals(kind)) {
+         UUID ownerId = this.summonOwners.get(entity.getUniqueId());
+         if (ownerId == null) {
+            ownerId = this.parseUuid(entity.getPersistentDataContainer().get(this.entityOwnerKey, PersistentDataType.STRING));
+         }
+         if (event.getTarget() instanceof Player player && ownerId != null && ownerId.equals(player.getUniqueId())) {
+            event.setCancelled(true);
+            if (entity instanceof Mob mob) {
+               mob.setTarget(null);
+            }
+         }
+         return;
+      }
       if (!"bug_silverfish".equals(kind)) {
          return;
       }
@@ -1363,54 +1380,54 @@ final class FfaManager {
       }
    }
 
-   private void triggerCrusherExplosion(Player owner, Player target, boolean attacking) {
-      if (!this.crusherExplosionDamage.contains(owner.getUniqueId())) {
-         double roll = ThreadLocalRandom.current().nextDouble();
-         double scale = attacking ? 0.5 : 1.0;
-         double damage = 0.0;
-         double radius = 0.0;
-         if (roll < 0.0625 * scale) {
-            damage = 32.0;
-            radius = 16.0;
-         } else if (roll < 0.125 * scale) {
-            damage = 16.0;
-            radius = 8.0;
-         } else if (roll < 0.25 * scale) {
-            damage = 8.0;
-            radius = 4.0;
-         } else if (roll < 0.5 * scale) {
-            damage = 4.0;
-            radius = 2.0;
-         }
-
-         if (!(damage <= 0.0) && !(radius <= 0.0)) {
-            Location origin = owner.getLocation().clone().add(0.0, 1.0, 0.0);
-            this.crusherExplosionDamage.add(owner.getUniqueId());
-
-            try {
-               for (Player nearby : owner.getWorld().getPlayers()) {
-                  if (this.isPlaying(nearby) && !nearby.getUniqueId().equals(owner.getUniqueId())) {
-                     double distance = origin.distance(nearby.getLocation().clone().add(0.0, 1.0, 0.0));
-                     if (!(distance > radius)) {
-                        double distanceFactor = Math.max(0.0, 1.0 - distance / radius);
-                        double coverFactor = owner.hasLineOfSight(nearby) ? 1.0 : 0.5;
-                        double dealt = damage * distanceFactor * coverFactor;
-                        if (dealt > 0.0) {
-                           this.recordDamage(owner, nearby);
-                           nearby.damage(dealt * 0.8, owner);
-                        }
-                     }
-                  }
-               }
-            } finally {
-               this.crusherExplosionDamage.remove(owner.getUniqueId());
-            }
-
-            owner.getWorld()
-               .spawnParticle(Particle.EXPLOSION, origin, damage >= 16.0 ? 4 : 2, Math.min(2.0, radius / 4.0), 0.5, Math.min(2.0, radius / 4.0), 0.05);
-            owner.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, damage >= 16.0 ? 1.5F : 0.9F, damage >= 16.0 ? 0.6F : 1.2F);
-         }
+   private void triggerCrusherExplosion(Player owner, LivingEntity target, boolean attacking) {
+      if (owner == null || target == null || this.crusherExplosionDamage.contains(owner.getUniqueId())) {
+         return;
       }
+
+      double roll = ThreadLocalRandom.current().nextDouble();
+      double damage;
+      double radius;
+      if (roll < 0.125) {
+         damage = 32.0;
+         radius = 16.0;
+      } else if (roll < 0.25) {
+         damage = 16.0;
+         radius = 8.0;
+      } else if (roll < 0.5) {
+         damage = 8.0;
+         radius = 4.0;
+      } else {
+         damage = 4.0;
+         radius = 2.0;
+      }
+
+      Location origin = target.getLocation().clone().add(0.0, 1.0, 0.0);
+      this.crusherExplosionDamage.add(owner.getUniqueId());
+      try {
+         for (Entity nearby : target.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
+            if (!(nearby instanceof LivingEntity living) || living.getUniqueId().equals(owner.getUniqueId()) || living.isDead()) {
+               continue;
+            }
+            if (living instanceof Player player && !this.isPlaying(player)) {
+               continue;
+            }
+            if (!(living instanceof Player) && !(living instanceof org.bukkit.entity.Husk)) {
+               continue;
+            }
+            double distance = origin.distance(living.getLocation().clone().add(0.0, 1.0, 0.0));
+            double dealt = damage * Math.max(0.25, 1.0 - distance / Math.max(1.0, radius));
+            if (living instanceof Player player) {
+               this.recordDamage(owner, player);
+            }
+            living.damage(dealt, owner);
+         }
+      } finally {
+         this.crusherExplosionDamage.remove(owner.getUniqueId());
+      }
+
+      owner.getWorld().spawnParticle(Particle.EXPLOSION, origin, damage >= 16.0 ? 4 : 2, 0.8, 0.5, 0.8, 0.05);
+      owner.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, damage >= 16.0 ? 1.5F : 0.9F, damage >= 16.0 ? 0.6F : 1.2F);
    }
 
    private void capFinalDamage(EntityDamageByEntityEvent event, double cap) {
@@ -1577,7 +1594,6 @@ final class FfaManager {
       String projectileKind
    ) {
       if (this.isDuplicateCrossbowShot(player)) {
-         event.setCancelled(true);
          return;
       }
 
@@ -2413,6 +2429,7 @@ final class FfaManager {
          int var8 = ThreadLocalRandom.current().nextInt(var6, var7 + 1);
          var1.setDamage(Math.max(0.0, var1.getDamage() - var8));
          var2.sendMessage("§6ギャンブラー防御抽選: §e" + var8 + " ダメージ補正");
+         var2.sendActionBar(Component.text("防御補正 " + (var8 >= 0 ? "-" : "+") + Math.abs(var8), var8 >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
       }
    }
 
@@ -2424,6 +2441,7 @@ final class FfaManager {
          int var9 = Math.max(var6, var7);
          int var10 = ThreadLocalRandom.current().nextInt(var8, var9 + 1);
          var2.sendMessage("§6ギャンブラー攻撃抽選: §e" + var10 + " ダメージ");
+         var2.sendActionBar(Component.text("攻撃抽選 " + (var10 >= 0 ? "+" : "") + var10 + "ダメージ", var10 > 0 ? NamedTextColor.GOLD : var10 < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
          if (var10 < 0) {
             var1.setCancelled(true);
             double var11 = Math.min(Math.abs(var10), var3.getMaxHealth() - var3.getHealth());
@@ -2642,8 +2660,8 @@ final class FfaManager {
 
    private record TrapState(String type, UUID owner, Location location, BlockState original, long expiresAt) {
    }
-   void adjustTrainingVillagerDamage(EntityDamageByEntityEvent event, Player attacker, org.bukkit.entity.Villager villager) {
-      if (attacker == null || villager == null || !this.isPlaying(attacker) || event.isCancelled()) {
+   void adjustTrainingHuskDamage(EntityDamageByEntityEvent event, Player attacker, org.bukkit.entity.Husk husk) {
+      if (attacker == null || husk == null || !this.isPlaying(attacker) || event.isCancelled()) {
          return;
       }
 
@@ -2660,7 +2678,7 @@ final class FfaManager {
          } else if ("revolver".equals(kind)) {
             event.setDamage(event.getDamage() * Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.CROSSBOW, "damage-multiplier"), 0.7)));
          } else if ("event_one_shot_arrow".equals(kind)) {
-            event.setDamage(Math.max(event.getDamage(), villager.getHealth() + 2.0));
+            event.setDamage(Math.max(event.getDamage(), husk.getHealth() + 2.0));
          }
       }
 
@@ -2673,7 +2691,7 @@ final class FfaManager {
          double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5;
          if (multiplier < 0.0) {
             event.setCancelled(true);
-            villager.setHealth(Math.min(villager.getAttribute(Attribute.MAX_HEALTH).getValue(), villager.getHealth() + Math.abs(multiplier)));
+            husk.setHealth(Math.min(husk.getAttribute(Attribute.MAX_HEALTH).getValue(), husk.getHealth() + Math.abs(multiplier)));
          } else {
             event.setDamage(event.getDamage() * multiplier);
          }
@@ -2682,15 +2700,15 @@ final class FfaManager {
       if (session.kit == FfaKit.ASSASSIN && this.isFfaItem(mainHand)) {
          if ("fatal_sword".equals(itemKind) || "fatal_dagger".equals(itemKind)) {
             event.setDamage(0.0);
-            villager.setHealth(0.5);
+            husk.setHealth(0.5);
          } else if ("poison_sword".equals(itemKind)) {
-            villager.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 1, false, false, true));
+            husk.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 1, false, false, true));
          }
       }
 
       if (session.kit == FfaKit.BUG_MANIA && this.isFfaItem(mainHand) && "bug_sword".equals(itemKind)
          && ThreadLocalRandom.current().nextInt(100) < 10) {
-         this.spawnBugSilverfish(attacker, villager.getLocation());
+         this.spawnBugSilverfish(attacker, husk.getLocation());
       }
 
       if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {
@@ -2705,7 +2723,7 @@ final class FfaManager {
       }
 
       if (session.kit == FfaKit.CRUSHER) {
-         villager.getWorld().spawnParticle(Particle.EXPLOSION, villager.getLocation().add(0.0, 1.0, 0.0), 2);
+         husk.getWorld().spawnParticle(Particle.EXPLOSION, husk.getLocation().add(0.0, 1.0, 0.0), 2);
       }
    }
 
