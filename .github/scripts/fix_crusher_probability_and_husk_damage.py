@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered repair: one probability roll per crusher damage event tick, and direct husk health damage.
 path = Path('src/main/java/org/server/minerva/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
