@@ -1,11 +1,10 @@
 from pathlib import Path
 import re
 
+# Triggered repair: actually apply Vampire attack and movement progression.
 path = Path('src/main/java/org/server/minerva/FfaManager.java')
 text = path.read_text(encoding='utf-8')
 
-# Root cause: previous code displayed a Vampire tier but never applied that tier
-# to outgoing damage or movement speed.
 helper = '''
    private double applyVampireProgression(Player attacker, double baseDamage) {
       double dealt = Math.max(0.0, baseDamage);
@@ -36,7 +35,6 @@ if 'private double applyVampireProgression(' not in text:
         raise SystemExit('manager class end not found')
     text = text[:pos] + helper + text[pos:]
 
-# Normal player target: apply multiplier before hunger recovery.
 normal_marker = '''                  if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {
                      double dealt = Math.max(0.0, event.getFinalDamage());
 '''
@@ -50,7 +48,6 @@ if normal_marker in text:
 elif 'double multiplier = this.applyVampireProgression(attacker, event.getDamage());' not in text:
     raise SystemExit('normal Vampire damage block not found')
 
-# Training Husk: remove duplicate manual accumulation/display and use the same shared progression.
 sig = '   void adjustTrainingHuskDamage(EntityDamageByEntityEvent event, Player attacker, org.bukkit.entity.Husk husk)'
 start = text.find(sig)
 if start < 0:
