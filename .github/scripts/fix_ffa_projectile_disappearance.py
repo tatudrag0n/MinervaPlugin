@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 
+# Triggered repair for the projectile disappearance regression.
 manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
 listener_path = Path('src/main/java/org/server/minerva/FfaListener.java')
 
