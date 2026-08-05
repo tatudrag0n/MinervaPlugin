@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - .github/scripts/set_vampire_gambler_display_actionbar_only.py
+      - .github/workflows/set-vampire-gambler-display-actionbar-only.yml
   workflow_dispatch:
 
 permissions:
