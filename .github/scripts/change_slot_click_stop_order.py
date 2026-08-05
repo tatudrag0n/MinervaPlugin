@@ -1,9 +1,9 @@
 from pathlib import Path
 
+# Triggered change: stop reels from the shelf column the player right-clicked.
 path = Path('src/main/java/org/server/minerva/SlotMachineManager.java')
 text = path.read_text(encoding='utf-8')
 
-# Add Vector import for precise shelf click position.
 if 'import org.bukkit.util.Vector;' not in text:
     text = text.replace('import org.bukkit.scheduler.BukkitTask;\n', 'import org.bukkit.scheduler.BukkitTask;\nimport org.bukkit.util.Vector;\n')
 
@@ -66,7 +66,6 @@ if old_animate_end not in text:
     raise SystemExit('automatic stop block not found')
 text = text.replace(old_animate_end, new_animate_end, 1)
 
-# Change result/reveal signatures to carry the clicked start column.
 text = text.replace('private void determineResult(SlotMachineManager.SpinSession session, int rerolls) {',
                     'private void determineResult(SlotMachineManager.SpinSession session, int rerolls, int startColumn) {', 1)
 text = text.replace('this.revealResult(session, List.of(symbol, symbol, symbol), () -> {',
@@ -76,7 +75,6 @@ text = text.replace('session, List.of(SlotMachineManager.Symbol.REDSTONE, SlotMa
 text = text.replace('this.revealResult(session, loss, () -> {',
                     'this.revealResult(session, loss, startColumn, () -> {', 1)
 
-# Free rerolls must wait for a fresh click too.
 text = text.replace('session.task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.animate(session, rerolls + 1), 10L);',
                     'session.task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> { session.stopping = false; this.animate(session, rerolls + 1); }, 10L);', 1)
 
@@ -109,7 +107,6 @@ if old_loop not in text:
     raise SystemExit('reveal loop not found')
 text = text.replace(old_loop, new_loop, 1)
 
-# Add stop request and physical click-to-column mapping before randomPreview.
 marker = '   private SlotMachineManager.Symbol randomPreview(boolean jackpotMode) {'
 helper = '''   private void requestStop(SlotMachineManager.SpinSession session, int startColumn) {
       if (session == null || session.stopping) {
@@ -145,7 +142,6 @@ if marker not in text:
     raise SystemExit('randomPreview marker not found')
 text = text.replace(marker, helper + marker, 1)
 
-# Track reroll count and stopping state in the session.
 old_fields = '''      private final String machineKey;
       private BukkitTask task;
 '''
@@ -158,7 +154,6 @@ if old_fields not in text:
     raise SystemExit('session fields not found')
 text = text.replace(old_fields, new_fields, 1)
 
-# Keep current reroll number available to click handler.
 old_animate_sig = '''   private void animate(final SlotMachineManager.SpinSession session, final int rerolls) {
       session.task = (new BukkitRunnable() {
 '''
