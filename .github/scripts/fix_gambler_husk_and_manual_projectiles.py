@@ -1,3 +1,4 @@
+# Trigger workflow after workflow file creation.
 from pathlib import Path
 
 manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
@@ -21,8 +22,6 @@ def method_bounds(text: str, signature: str):
                 return start, i + 1
     raise SystemExit(f'unclosed method: {signature}')
 
-# Root cause 1: the Husk debug path bypasses applyGamblerOutgoing because that method requires a Player victim.
-# Add the gambler roll directly to the Husk debug adapter so both damage and UI are exercised in solo testing.
 sig = '   void adjustTrainingHuskDamage(EntityDamageByEntityEvent event, Player attacker, org.bukkit.entity.Husk husk)'
 start, end = method_bounds(manager, sig)
 old_method = manager[start:end]
@@ -52,9 +51,6 @@ gambler_block = '''      FfaManager.FfaSession session = this.sessions.get(attac
 old_method = old_method.replace(needle, gambler_block, 1)
 manager = manager[:start] + old_method + manager[end:]
 
-# Root cause 2: the sniper depended on Bukkit's native crossbow event chain, which was repeatedly
-# cancelled/re-entered by ammo/reload handlers. Root cause 3: the wind charge depended on vanilla
-# consumption plus a delayed inventory refill. Replace both with one authoritative manual launch path.
 manual_method = '''
    boolean handleManualKitProjectileUse(PlayerInteractEvent event) {
       if (!event.getAction().isRightClick() || !this.isPlaying(event.getPlayer())) {
@@ -127,7 +123,6 @@ if idx < 0:
 if 'boolean handleManualKitProjectileUse(' not in manager:
     manager = manager[:idx] + manual_method + '\n' + manager[idx:]
 
-# Route the interaction through the authoritative path before legacy crossbow/potion logic.
 listener_old = '''   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent var1) {
       if (!this.ffa.handleEmptyCrossbowInteract(var1)) {
