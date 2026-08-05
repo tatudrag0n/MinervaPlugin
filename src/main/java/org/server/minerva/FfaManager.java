@@ -2861,11 +2861,11 @@ final class FfaManager {
    }
 
    private double rollTrainingCrusherExplosionDamage() {
-      int roll = ThreadLocalRandom.current().nextInt(16);
-      if (roll < 8) return 0.0;
-      if (roll < 12) return 4.0;
-      if (roll < 14) return 8.0;
-      if (roll == 14) return 16.0;
+      int roll = ThreadLocalRandom.current().nextInt(100);
+      if (roll < 50) return 0.0;
+      if (roll < 74) return 4.0;
+      if (roll < 89) return 8.0;
+      if (roll < 99) return 16.0;
       return 32.0;
    }
 
