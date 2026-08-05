@@ -270,9 +270,10 @@ enum FfaKit {
          case NECROMANCER:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.WOODEN_SWORD, "§5死霊術師の木剣", 1, Map.of())});
 
-            for (String mob : List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton", "phantom")) {
+            for (String mob : List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton")) {
                inventory.addItem(new ItemStack[]{kitItem(plugin, this, "summon_" + mob, spawnEgg(mob), summonName(mob), 1, Map.of())});
             }
+            inventory.setItem(8, kitItem(plugin, this, "food", Material.ROTTEN_FLESH, "§5死霊術師の腐肉", 1, Map.of()));
             break;
          case TRAPPER:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "weapon", Material.STONE_SWORD, "§eトラッパーの石剣", 1, Map.of())});

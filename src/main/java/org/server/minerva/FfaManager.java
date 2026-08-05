@@ -76,7 +76,7 @@ import org.bukkit.scoreboard.Scoreboard;
 final class FfaManager {
    private static final String CENTER_MISSING = "§cFFA中央地点が設定されていません。管理者に /mva ffa setcenter を実行してもらってください。";
    private static final String KIT_SELECTOR_TITLE = "FFAキット選択";
-   private static final List<String> NECROMANCER_MOBS = List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton", "phantom");
+   private static final List<String> NECROMANCER_MOBS = List.of("zombie", "husk", "drowned", "skeleton", "stray", "bogged", "wither_skeleton");
    private final Minerva plugin;
    private final FfaConfig config;
    private final FfaStatsManager stats;
@@ -841,7 +841,6 @@ final class FfaManager {
          case "stray" -> 5;
          case "bogged" -> 6;
          case "wither_skeleton" -> 7;
-         case "phantom" -> 8;
          default -> -1;
       };
       if (slot < 0) {
