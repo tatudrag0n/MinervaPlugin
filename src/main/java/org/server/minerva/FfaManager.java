@@ -2843,7 +2843,7 @@ final class FfaManager {
       }
 
       if (session.kit == FfaKit.CRUSHER) {
-         husk.getWorld().spawnParticle(Particle.EXPLOSION, husk.getLocation().add(0.0, 1.0, 0.0), 2);
+         this.applyTrainingCrusherExplosion(attacker, husk, husk.getLocation());
       }
       if (session.kit == FfaKit.VAMPIRE && !event.isCancelled() && event.getDamage() > 0.0) {
          double dealt = Math.max(0.0, event.getDamage());
@@ -2858,6 +2858,36 @@ final class FfaManager {
          attacker.sendMessage("§4ヴァンパイア累計ダメージ: §c" + String.format(Locale.ROOT, "%.1f", total) + " §7/ 攻撃強化 Lv." + tier);
       }
 
+   }
+
+   private double rollTrainingCrusherExplosionDamage() {
+      int roll = ThreadLocalRandom.current().nextInt(16);
+      if (roll < 8) return 0.0;
+      if (roll < 12) return 4.0;
+      if (roll < 14) return 8.0;
+      if (roll == 14) return 16.0;
+      return 32.0;
+   }
+
+   private void applyTrainingCrusherExplosion(Player crusher, org.bukkit.entity.Husk husk, Location center) {
+      double damage = this.rollTrainingCrusherExplosionDamage();
+      if (damage <= 0.0 || crusher == null || husk == null || husk.isDead()) return;
+      World world = center.getWorld();
+      if (world != null) {
+         world.spawnParticle(Particle.EXPLOSION, center.clone().add(0.0, 1.0, 0.0), 2);
+         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
+      }
+      husk.setNoDamageTicks(0);
+      husk.setHealth(Math.max(0.0, husk.getHealth() - damage));
+      crusher.sendActionBar(Component.text("クラッシャー爆発 " + (int)damage + "ダメージ", NamedTextColor.GOLD));
+   }
+
+   void handleTrainingHuskAttack(EntityDamageByEntityEvent event, org.bukkit.entity.Husk husk, Player victim) {
+      if (event.isCancelled() || husk == null || victim == null || !this.isPlaying(victim)) return;
+      FfaManager.FfaSession session = this.sessions.get(victim.getUniqueId());
+      if (session != null && session.kit == FfaKit.CRUSHER) {
+         this.applyTrainingCrusherExplosion(victim, husk, victim.getLocation());
+      }
    }
 
 }

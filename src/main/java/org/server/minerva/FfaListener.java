@@ -437,6 +437,16 @@ final class FfaListener implements Listener {
       }
    }
 
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onTrainingHuskAttack(EntityDamageByEntityEvent event) {
+      if (!(event.getDamager() instanceof org.bukkit.entity.Husk husk)
+         || !(event.getEntity() instanceof Player victim)
+         || !this.ffa.isPlaying(victim)) {
+         return;
+      }
+      this.ffa.handleTrainingHuskAttack(event, husk, victim);
+   }
+
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
    public void onTrainingHuskDamage(EntityDamageByEntityEvent event) {
       if (!(event.getEntity() instanceof org.bukkit.entity.Husk husk)) {
