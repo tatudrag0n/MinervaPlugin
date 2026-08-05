@@ -1,0 +1,37 @@
+name: Rebalance Vampire damage and speed
+
+on:
+  push:
+    paths:
+      - .github/scripts/rebalance_vampire_damage_speed.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Vampire rebalance
+        run: python3 .github/scripts/rebalance_vampire_damage_speed.py
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build
+        run: mvn -B -DskipTests package
+      - name: Commit source changes
+        run: |
+          if git diff --quiet; then
+            echo "No source changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java/org/server/minerva/FfaManager.java
+          git commit -m "Rebalance Vampire toward damage over speed"
+          git push
