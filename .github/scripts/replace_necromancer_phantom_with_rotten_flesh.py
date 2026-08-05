@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered after workflow creation.
 kit_path = Path('src/main/java/org/server/minerva/FfaKit.java')
 manager_path = Path('src/main/java/org/server/minerva/FfaManager.java')
 
