@@ -2864,15 +2864,50 @@ final class FfaManager {
 
    private void applyTrainingCrusherExplosion(Player crusher, org.bukkit.entity.Husk husk, Location center) {
       double damage = this.rollTrainingCrusherExplosionDamage();
-      if (damage <= 0.0 || crusher == null || husk == null || husk.isDead()) return;
-      World world = center.getWorld();
-      if (world != null) {
-         world.spawnParticle(Particle.EXPLOSION, center.clone().add(0.0, 1.0, 0.0), 2);
-         world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
+      if (damage <= 0.0 || crusher == null || center == null || center.getWorld() == null) {
+         return;
       }
-      husk.setNoDamageTicks(0);
-      husk.setHealth(Math.max(0.0, husk.getHealth() - damage));
-      crusher.sendActionBar(Component.text("クラッシャー爆発 " + (int)damage + "ダメージ", NamedTextColor.GOLD));
+
+      double radius = damage >= 32.0 ? 16.0 : damage >= 16.0 ? 8.0 : damage >= 8.0 ? 4.0 : 2.0;
+      World world = center.getWorld();
+      world.spawnParticle(Particle.EXPLOSION, center.clone().add(0.0, 1.0, 0.0), Math.max(2, (int)(radius / 2.0)));
+      world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
+
+      int affected = 0;
+      for (Entity entity : world.getNearbyEntities(center, radius, radius, radius)) {
+         if (!(entity instanceof LivingEntity living) || living.isDead() || living.getUniqueId().equals(crusher.getUniqueId())) {
+            continue;
+         }
+         if (living.getLocation().distanceSquared(center) > radius * radius) {
+            continue;
+         }
+         if (living instanceof Player nearbyPlayer && !this.isPlaying(nearbyPlayer)) {
+            continue;
+         }
+
+         living.setNoDamageTicks(0);
+         if (living instanceof Player nearbyPlayer) {
+            UUID targetId = nearbyPlayer.getUniqueId();
+            if (!this.crusherExplosionDamage.add(targetId)) {
+               continue;
+            }
+            try {
+               nearbyPlayer.damage(damage, crusher);
+            } finally {
+               this.crusherExplosionDamage.remove(targetId);
+            }
+         } else {
+            AttributeInstance maxHealth = living.getAttribute(Attribute.MAX_HEALTH);
+            double maximum = maxHealth == null ? living.getHealth() : maxHealth.getValue();
+            living.setHealth(Math.max(0.0, Math.min(maximum, living.getHealth()) - damage));
+         }
+         affected++;
+      }
+
+      crusher.sendActionBar(Component.text(
+         "クラッシャー爆発 " + (int)damage + "ダメージ / 範囲" + (int)radius + " / " + affected + "体",
+         NamedTextColor.GOLD
+      ));
    }
 
    void handleTrainingHuskAttack(EntityDamageByEntityEvent event, org.bukkit.entity.Husk husk, Player victim) {
