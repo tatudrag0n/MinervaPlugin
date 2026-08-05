@@ -1052,7 +1052,7 @@ final class FfaManager {
          Entity entity = this.entityById(entry.getKey());
          Player owner = this.plugin.getServer().getPlayer(entry.getValue());
          if (entity instanceof Mob mob && owner != null && this.isPlaying(owner)) {
-            Player target = this.nearestEnemy(owner, entity.getLocation(), false);
+            LivingEntity target = this.nearestSummonTarget(owner, entity);
             if (target != null) {
                mob.setTarget(target);
             }
@@ -1073,6 +1073,29 @@ final class FfaManager {
             this.removeBugEntity(entry.getKey());
          }
       }
+   }
+
+   private LivingEntity nearestSummonTarget(Player owner, Entity summon) {
+      LivingEntity best = null;
+      double bestDistance = Double.MAX_VALUE;
+      for (Entity nearby : summon.getNearbyEntities(32.0, 16.0, 32.0)) {
+         if (!(nearby instanceof LivingEntity living) || living.isDead() || living.getUniqueId().equals(owner.getUniqueId())) {
+            continue;
+         }
+         String kind = nearby.getPersistentDataContainer().get(this.entityKindKey, PersistentDataType.STRING);
+         if ("summon".equals(kind)) {
+            continue;
+         }
+         if (nearby instanceof Player player && !this.isPlaying(player)) {
+            continue;
+         }
+         double distance = nearby.getLocation().distanceSquared(summon.getLocation());
+         if (distance < bestDistance) {
+            best = living;
+            bestDistance = distance;
+         }
+      }
+      return best;
    }
 
    private Player nearestEnemy(Player owner, Location location, boolean avoidBugMania) {
@@ -1383,29 +1406,30 @@ final class FfaManager {
       if (owner == null || target == null || this.crusherExplosionDamage.contains(owner.getUniqueId())) {
          return;
       }
-
       double roll = ThreadLocalRandom.current().nextDouble();
       double damage;
       double radius;
-      if (roll < 0.125) {
+      if (roll < 0.0625) {
          damage = 32.0;
          radius = 16.0;
-      } else if (roll < 0.25) {
+      } else if (roll < 0.125) {
          damage = 16.0;
          radius = 8.0;
-      } else if (roll < 0.5) {
+      } else if (roll < 0.25) {
          damage = 8.0;
          radius = 4.0;
-      } else {
+      } else if (roll < 0.5) {
          damage = 4.0;
          radius = 2.0;
+      } else {
+         return;
       }
 
       Location origin = target.getLocation().clone().add(0.0, 1.0, 0.0);
       this.crusherExplosionDamage.add(owner.getUniqueId());
       try {
          for (Entity nearby : target.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
-            if (!(nearby instanceof LivingEntity living) || living.getUniqueId().equals(owner.getUniqueId()) || living.isDead()) {
+            if (!(nearby instanceof LivingEntity living) || living.isDead() || living.getUniqueId().equals(owner.getUniqueId())) {
                continue;
             }
             if (living instanceof Player player && !this.isPlaying(player)) {
@@ -1415,7 +1439,7 @@ final class FfaManager {
                continue;
             }
             double distance = origin.distance(living.getLocation().clone().add(0.0, 1.0, 0.0));
-            double dealt = damage * Math.max(0.25, 1.0 - distance / Math.max(1.0, radius));
+            double dealt = Math.max(1.0, damage * Math.max(0.25, 1.0 - distance / Math.max(1.0, radius)));
             if (living instanceof Player player) {
                this.recordDamage(owner, player);
             }
@@ -1424,7 +1448,6 @@ final class FfaManager {
       } finally {
          this.crusherExplosionDamage.remove(owner.getUniqueId());
       }
-
       owner.getWorld().spawnParticle(Particle.EXPLOSION, origin, damage >= 16.0 ? 4 : 2, 0.8, 0.5, 0.8, 0.05);
       owner.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, damage >= 16.0 ? 1.5F : 0.9F, damage >= 16.0 ? 0.6F : 1.2F);
    }
@@ -1735,6 +1758,8 @@ final class FfaManager {
                         if (target > 0.0) {
                            victim.setHealth(Math.max(0.5, victim.getHealth() - target));
                            mainHand.setAmount(0);
+                           attacker.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+                           attacker.updateInventory();
                            attacker.sendActionBar(Component.text("致命の短剣を使用しました", NamedTextColor.DARK_RED));
                         }
 
@@ -2426,6 +2451,7 @@ final class FfaManager {
          var1.setDamage(Math.max(0.0, var1.getDamage() - var8));
          var2.sendMessage("§6ギャンブラー防御抽選: §e" + var8 + " ダメージ補正");
          var2.sendActionBar(Component.text("防御補正 " + (var8 >= 0 ? "-" : "+") + Math.abs(var8), var8 >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
+         var2.sendTitle("", "§6防御補正 §e" + var8, 0, 20, 5);
       }
    }
 
@@ -2438,6 +2464,7 @@ final class FfaManager {
          int var10 = ThreadLocalRandom.current().nextInt(var8, var9 + 1);
          var2.sendMessage("§6ギャンブラー攻撃抽選: §e" + var10 + " ダメージ");
          var2.sendActionBar(Component.text("攻撃抽選 " + (var10 >= 0 ? "+" : "") + var10 + "ダメージ", var10 > 0 ? NamedTextColor.GOLD : var10 < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
+         var2.sendTitle("", "§6攻撃抽選 §e" + var10 + "ダメージ", 0, 20, 5);
          if (var10 < 0) {
             var1.setCancelled(true);
             double var11 = Math.min(Math.abs(var10), var3.getMaxHealth() - var3.getHealth());
