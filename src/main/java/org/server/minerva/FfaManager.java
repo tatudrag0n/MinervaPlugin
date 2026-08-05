@@ -1806,6 +1806,8 @@ final class FfaManager {
                   }
 
                   if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {
+                     double multiplier = this.applyVampireProgression(attacker, event.getDamage());
+                     event.setDamage(event.getDamage() * multiplier);
                      double dealt = Math.max(0.0, event.getFinalDamage());
                      double hungerGain = dealt
                         * Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "hunger-steal-percent"), 50.0))
@@ -2845,17 +2847,15 @@ final class FfaManager {
       if (session.kit == FfaKit.CRUSHER) {
          this.applyTrainingCrusherExplosion(attacker, husk, husk.getLocation());
       }
+
       if (session.kit == FfaKit.VAMPIRE && !event.isCancelled() && event.getDamage() > 0.0) {
+         double multiplier = this.applyVampireProgression(attacker, event.getDamage());
+         event.setDamage(event.getDamage() * multiplier);
          double dealt = Math.max(0.0, event.getDamage());
-         double total = this.vampireDamage.merge(attacker.getUniqueId(), dealt, Double::sum);
          int restored = Math.max(1, (int)Math.ceil(dealt * 0.5));
          attacker.setFoodLevel(Math.min(20, attacker.getFoodLevel() + restored));
          attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
          attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
-         double threshold = Math.max(1.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-threshold"), 50.0));
-         int tier = Math.max(0, (int)Math.floor(total / threshold));
-         attacker.sendActionBar(Component.text("吸血蓄積 " + String.format(Locale.ROOT, "%.1f", total) + " / 攻撃強化 Lv." + tier, NamedTextColor.RED));
-         attacker.sendMessage("§4ヴァンパイア累計ダメージ: §c" + String.format(Locale.ROOT, "%.1f", total) + " §7/ 攻撃強化 Lv." + tier);
       }
 
    }
@@ -2888,6 +2888,29 @@ final class FfaManager {
       if (session != null && session.kit == FfaKit.CRUSHER) {
          this.applyTrainingCrusherExplosion(victim, husk, victim.getLocation());
       }
+   }
+
+   private double applyVampireProgression(Player attacker, double baseDamage) {
+      double dealt = Math.max(0.0, baseDamage);
+      double total = this.vampireDamage.merge(attacker.getUniqueId(), dealt, Double::sum);
+      double threshold = Math.max(1.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-threshold"), 50.0));
+      int maxTier = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.VAMPIRE, "max-damage-buff-tier"), 5));
+      int tier = Math.min(maxTier, Math.max(0, (int)Math.floor(total / threshold)));
+      double damagePerTier = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-per-tier-percent"), 10.0));
+      double multiplier = 1.0 + tier * damagePerTier / 100.0;
+
+      if (tier > 0) {
+         int speedAmplifier = Math.min(2, (tier - 1) / 2);
+         attacker.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, speedAmplifier, false, false, true));
+      }
+
+      attacker.sendActionBar(Component.text(
+         "吸血蓄積 " + String.format(Locale.ROOT, "%.1f", total)
+            + " / 攻撃 x" + String.format(Locale.ROOT, "%.2f", multiplier)
+            + " / 速度 Lv." + (tier <= 0 ? 0 : Math.min(3, (tier + 1) / 2)),
+         NamedTextColor.RED
+      ));
+      return multiplier;
    }
 
 }
