@@ -24,11 +24,11 @@ def method_bounds(text: str, signature: str):
 
 helper = '''
    private double rollTrainingCrusherExplosionDamage() {
-      int roll = ThreadLocalRandom.current().nextInt(16);
-      if (roll < 8) return 0.0;
-      if (roll < 12) return 4.0;
-      if (roll < 14) return 8.0;
-      if (roll == 14) return 16.0;
+      int roll = ThreadLocalRandom.current().nextInt(100);
+      if (roll < 50) return 0.0;
+      if (roll < 74) return 4.0;
+      if (roll < 89) return 8.0;
+      if (roll < 99) return 16.0;
       return 32.0;
    }
 
@@ -56,7 +56,19 @@ helper = '''
 insert_at = manager.rfind('\n}')
 if insert_at < 0:
     raise SystemExit('manager class end not found')
-if 'rollTrainingCrusherExplosionDamage()' not in manager:
+
+if 'rollTrainingCrusherExplosionDamage()' in manager:
+    start, end = method_bounds(manager, '   private double rollTrainingCrusherExplosionDamage()')
+    method = '''   private double rollTrainingCrusherExplosionDamage() {
+      int roll = ThreadLocalRandom.current().nextInt(100);
+      if (roll < 50) return 0.0;
+      if (roll < 74) return 4.0;
+      if (roll < 89) return 8.0;
+      if (roll < 99) return 16.0;
+      return 32.0;
+   }'''
+    manager = manager[:start] + method + manager[end:]
+else:
     manager = manager[:insert_at] + helper + manager[insert_at:]
 
 old = '''      if (session.kit == FfaKit.CRUSHER) {
