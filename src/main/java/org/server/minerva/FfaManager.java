@@ -2507,6 +2507,71 @@ final class FfaManager {
       }
    }
 
+
+   boolean handleManualKitProjectileUse(PlayerInteractEvent event) {
+      if (!event.getAction().isRightClick() || !this.isPlaying(event.getPlayer())) {
+         return false;
+      }
+
+      Player player = event.getPlayer();
+      ItemStack item = event.getItem();
+      if (!this.isFfaItem(item)) {
+         return false;
+      }
+
+      FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
+      if (session == null) {
+         return false;
+      }
+
+      String kind = this.itemKind(item);
+      if ("sniper".equals(kind) && session.kit == FfaKit.SNIPER) {
+         UUID id = player.getUniqueId();
+         if (this.sniperReloadTasks.containsKey(id)) {
+            player.sendActionBar(Component.text("スナイパーをリロード中", NamedTextColor.YELLOW));
+            return true;
+         }
+
+         int ammo = this.sniperAmmo.getOrDefault(id, 1);
+         if (ammo <= 0) {
+            this.startCrossbowReload(player, FfaKit.SNIPER, this.sniperAmmo, this.sniperReloadTasks, 1, "スナイパー");
+            return true;
+         }
+
+         long now = System.currentTimeMillis();
+         long readyAt = this.sniperShotCooldownUntil.getOrDefault(id, 0L);
+         if (now < readyAt) {
+            return true;
+         }
+         this.sniperShotCooldownUntil.put(id, now + 1000L);
+
+         org.bukkit.entity.Arrow arrow = player.launchProjectile(org.bukkit.entity.Arrow.class);
+         arrow.setVelocity(player.getEyeLocation().getDirection().normalize().multiply(4.0));
+         arrow.setCritical(true);
+         arrow.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+         arrow.getPersistentDataContainer().set(this.projectileKindKey, PersistentDataType.STRING, "sniper");
+         arrow.getPersistentDataContainer().set(this.projectileOwnerKey, PersistentDataType.STRING, id.toString());
+         this.sniperAmmo.put(id, ammo - 1);
+         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_BLAST, 0.8F, 1.7F);
+         player.sendActionBar(Component.text("残弾 0 — 右クリックでリロード", NamedTextColor.RED));
+         return true;
+      }
+
+      if ("wind_charge".equals(kind) && session.kit == FfaKit.MACE) {
+         if (player.hasCooldown(Material.WIND_CHARGE)) {
+            return true;
+         }
+         player.setCooldown(Material.WIND_CHARGE, 40);
+         org.bukkit.entity.WindCharge charge = player.launchProjectile(org.bukkit.entity.WindCharge.class);
+         charge.setVelocity(player.getEyeLocation().getDirection().normalize().multiply(1.5));
+         charge.getPersistentDataContainer().set(this.projectileKindKey, PersistentDataType.STRING, "mace_wind_charge");
+         charge.getPersistentDataContainer().set(this.projectileOwnerKey, PersistentDataType.STRING, player.getUniqueId().toString());
+         return true;
+      }
+
+      return false;
+   }
+
    boolean handleEmptyCrossbowInteract(PlayerInteractEvent var1) {
       if (!var1.getAction().isRightClick()) {
          return false;
@@ -2702,6 +2767,24 @@ final class FfaManager {
       }
 
       FfaManager.FfaSession session = this.sessions.get(attacker.getUniqueId());
+      if (session != null && session.kit == FfaKit.GAMBLER) {
+         int min = this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.GAMBLER, "min-random-damage"), -10);
+         int max = this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.GAMBLER, "max-random-damage"), 20);
+         int roll = ThreadLocalRandom.current().nextInt(Math.min(min, max), Math.max(min, max) + 1);
+         String shown = (roll >= 0 ? "+" : "") + roll;
+         attacker.sendMessage("§6ギャンブラー攻撃抽選: §e" + shown + " ダメージ");
+         attacker.sendActionBar(Component.text("攻撃抽選 " + shown + "ダメージ", roll > 0 ? NamedTextColor.GOLD : roll < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
+         attacker.sendTitle("", "§6攻撃抽選 §e" + shown + "ダメージ", 0, 30, 10);
+         if (roll < 0) {
+            event.setCancelled(true);
+            husk.setHealth(Math.min(husk.getMaxHealth(), husk.getHealth() + Math.abs(roll)));
+         } else if (roll == 0) {
+            event.setCancelled(true);
+         } else {
+            event.setDamage(roll);
+         }
+         return;
+      }
       if (session == null) {
          return;
       }

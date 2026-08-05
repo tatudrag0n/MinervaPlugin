@@ -426,6 +426,10 @@ final class FfaListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onInteract(PlayerInteractEvent var1) {
+      if (this.ffa.handleManualKitProjectileUse(var1)) {
+         var1.setCancelled(true);
+         return;
+      }
       if (!this.ffa.handleEmptyCrossbowInteract(var1)) {
          if (this.ffa.handlePotionUse(var1)) {
             var1.setCancelled(true);
