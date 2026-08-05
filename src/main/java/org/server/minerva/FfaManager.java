@@ -1733,12 +1733,10 @@ final class FfaManager {
                      double max = this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.GAMBLER, "max-damage-multiplier"), 15.0);
                      int steps = (int)Math.round((Math.max(min, max) - Math.min(min, max)) / 0.5);
                      double multiplier = Math.min(min, max) + ThreadLocalRandom.current().nextInt(steps + 1) * 0.5;
-                     attacker.sendMessage("§6ギャンブラー倍率: §e" + String.format(Locale.ROOT, "%.1f", multiplier) + "倍");
                      attacker.playSound(
                         attacker.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.55F, multiplier < 0.0 ? 0.6F : Math.min(2.0F, 0.9F + (float)multiplier / 20.0F)
                      );
                      if (multiplier == 15.0) {
-                        attacker.sendMessage("§6§l✦✦✦ LUCKY PUNCH! 15.0倍! ✦✦✦");
                         attacker.playSound(attacker.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0F, 1.2F);
                         this.plugin.unlockTitle(attacker, "ラッキーパンチ");
                      }
@@ -2465,7 +2463,6 @@ final class FfaManager {
          int var7 = Math.max(var4, var5);
          int var8 = ThreadLocalRandom.current().nextInt(var6, var7 + 1);
          var1.setDamage(Math.max(0.0, var1.getDamage() - var8));
-         var2.sendMessage("§6ギャンブラー防御抽選: §e" + var8 + " ダメージ補正");
          var2.sendActionBar(Component.text("防御補正 " + (var8 >= 0 ? "-" : "+") + Math.abs(var8), var8 >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
          var2.sendTitle("", "§6防御補正 §e" + var8, 0, 20, 5);
       }
@@ -2478,9 +2475,7 @@ final class FfaManager {
          int var8 = Math.min(var6, var7);
          int var9 = Math.max(var6, var7);
          int var10 = ThreadLocalRandom.current().nextInt(var8, var9 + 1);
-         var2.sendMessage("§6ギャンブラー攻撃抽選: §e" + var10 + " ダメージ");
          var2.sendActionBar(Component.text("攻撃抽選 " + (var10 >= 0 ? "+" : "") + var10 + "ダメージ", var10 > 0 ? NamedTextColor.GOLD : var10 < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
-         var2.sendTitle("", "§6攻撃抽選 §e" + var10 + "ダメージ", 0, 20, 5);
          if (var10 < 0) {
             var1.setCancelled(true);
             double var11 = Math.min(Math.abs(var10), var3.getMaxHealth() - var3.getHealth());
@@ -2775,9 +2770,7 @@ final class FfaManager {
          int max = this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.GAMBLER, "max-random-damage"), 20);
          int roll = ThreadLocalRandom.current().nextInt(Math.min(min, max), Math.max(min, max) + 1);
          String shown = (roll >= 0 ? "+" : "") + roll;
-         attacker.sendMessage("§6ギャンブラー攻撃抽選: §e" + shown + " ダメージ");
          attacker.sendActionBar(Component.text("攻撃抽選 " + shown + "ダメージ", roll > 0 ? NamedTextColor.GOLD : roll < 0 ? NamedTextColor.RED : NamedTextColor.GRAY));
-         attacker.sendTitle("", "§6攻撃抽選 §e" + shown + "ダメージ", 0, 30, 10);
          if (roll < 0) {
             event.setCancelled(true);
             husk.setHealth(Math.min(husk.getMaxHealth(), husk.getHealth() + Math.abs(roll)));
