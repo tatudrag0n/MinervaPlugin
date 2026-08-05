@@ -39,6 +39,7 @@ final class FfaConfig {
       boolean migrateArmorInflation = armorBalanceVersion < 3;
       boolean migrateVampireBalance = config.getInt("ffa.kits.vampire-balance-version", 0) < 1;
       boolean migratePermanentKits = config.getInt("ffa.kits.kit-balance-version", 0) < 4;
+      boolean migrateGameplayBalance = config.getInt("ffa.kits.gameplay-balance-version", 0) < 1;
       this.setIfMissingOrForce(config, "ffa.kits.armor-points-bonus", 3.0, migrateArmorInflation);
       this.setIfMissing(config, "ffa.kits.default", "sword");
       this.setDisplayName(config, "ffa.kits.bow.display-name", "§aアーチャー", "§a弓キット");
@@ -166,6 +167,7 @@ final class FfaConfig {
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.mace.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.mace.potions", List.of(), migratePermanentKits);
       this.applyFfa17Defaults(config, migrateBalancedArmor || migratePermanentKits, migratePermanentKits, migrateVampireBalance);
+      this.applyGameplayBalancePass(config, migrateGameplayBalance);
       if (migrateBalancedArmor || migrateArmorInflation || migratePermanentKits) {
          config.set("ffa.kits.armor-balance-version", 3);
          config.set("ffa.kits.kit-balance-version", 4);
@@ -173,6 +175,10 @@ final class FfaConfig {
 
       if (migrateVampireBalance) {
          config.set("ffa.kits.vampire-balance-version", 1);
+      }
+
+      if (migrateGameplayBalance) {
+         config.set("ffa.kits.gameplay-balance-version", 1);
       }
 
       this.plugin.saveConfig();
@@ -613,6 +619,40 @@ final class FfaConfig {
       this.setIfMissingFromLegacy(config, "ffa.field-items.events.mp_fever.duration-seconds", "ffa.field-items.events.em_fever.duration-seconds", 120);
       this.setIfMissing(config, "ffa.field-items.events.sky_spear.duration-seconds", 45);
       this.setIfMissing(config, "ffa.field-items.events.time_shift.duration-seconds", 90);
+   }
+
+   private void applyGameplayBalancePass(FileConfiguration config, boolean force) {
+      // Basic kits: reliable equipment and modest, consistent utility.
+      this.setArmorDefault(config, "axe", force, "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots");
+      this.setArmorDefault(config, "bow", force, "leather_helmet", "chainmail_chestplate", "leather_leggings", "leather_boots");
+      this.setArmorDefault(config, "spear", force, "leather_helmet", "chainmail_chestplate", "chainmail_leggings", "leather_boots");
+      this.setArmorDefault(config, "crossbow", force, "leather_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots");
+      this.setArmorDefault(config, "sword", force, "iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots");
+      this.setArmorDefault(config, "shield", force, "chainmail_helmet", "iron_chestplate", "chainmail_leggings", "chainmail_boots");
+      this.setArmorDefault(config, "trident", force, "turtle_helmet", "chainmail_chestplate", "chainmail_leggings", "iron_boots");
+      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.bow.bow-enchantments", List.of("power:2", "infinity:1"), force);
+      this.setIfMissingOrForce(config, "ffa.kits.crossbow.damage-multiplier", 0.85, force);
+      this.setIfMissingOrForce(config, "ffa.kits.crossbow.reload-ticks", 65, force);
+      this.setIfMissingOrForce(config, "ffa.kits.sword.golden-apple-cooldown-seconds", 90, force);
+
+      // Special kits: higher ceiling, but clearer risks and setup requirements.
+      this.setIfMissingOrForce(config, "ffa.kits.sniper.damage-multiplier", 2.5, force);
+      this.setIfMissingOrForce(config, "ffa.kits.sniper.reload-ticks", 100, force);
+      this.setIfMissingOrForce(config, "ffa.kits.mace.max-final-damage", 10.0, force);
+      this.setIfMissingOrForce(config, "ffa.kits.mace.wind-charge-refill-seconds", 8, force);
+      this.setIfMissingOrForce(config, "ffa.kits.vampire.damage-buff-threshold", 60.0, force);
+      this.setIfMissingOrForce(config, "ffa.kits.vampire.max-damage-buff-tier", 4, force);
+      this.setIfMissingOrForce(config, "ffa.kits.vampire.damage-buff-per-tier-percent", 12.5, force);
+      this.setIfMissingOrForce(config, "ffa.kits.vampire.lifesteal-percent", 30.0, force);
+      this.setIfMissingOrForce(config, "ffa.kits.vampire.hunger-steal-percent", 30.0, force);
+      this.setIfMissingOrForce(config, "ffa.kits.trapper.trap-cooldown-seconds", 16, force);
+      this.setIfMissingOrForce(config, "ffa.kits.bug_mania.max-owned-silverfish", 5, force);
+      this.setIfMissingOrForce(config, "ffa.kits.crusher.activation-cooldown-ticks", 30, force);
+      this.setIfMissingOrForce(config, "ffa.kits.wizard.potion-cooldowns.slow", 10, force);
+      this.setIfMissingOrForce(config, "ffa.kits.wizard.potion-cooldowns.harm", 13, force);
+      this.setIfMissingOrForce(config, "ffa.kits.wizard.potion-cooldowns.poison", 16, force);
+      this.setIfMissingOrForce(config, "ffa.kits.wizard.potion-cooldowns.weakness", 13, force);
+      this.setIfMissingOrForce(config, "ffa.kits.wizard.potion-cooldowns.blindness", 22, force);
    }
 
    private void kit(

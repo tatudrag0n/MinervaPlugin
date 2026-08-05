@@ -161,6 +161,7 @@ enum FfaKit {
                }
             );
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "arrow", Material.ARROW, "§f狩人の矢", this.amount(config, "arrows", 1), Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "backup_weapon", Material.STONE_SWORD, "§a狩人の石剣", 1, Map.of())});
             break;
          case SPEAR:
             Material spear = this.spearMaterial(config, plugin, true);
@@ -185,6 +186,7 @@ enum FfaKit {
                   )
                }
             );
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "backup_weapon", Material.STONE_SWORD, "§dリボルバーの石剣", 1, Map.of())});
             break;
          case SWORD:
             inventory.addItem(

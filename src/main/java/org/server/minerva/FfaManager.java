@@ -791,7 +791,7 @@ final class FfaManager {
       List<UUID> owned = this.summonedMobs.computeIfAbsent(ownerId, ignored -> new ArrayList<>());
       owned.add(entity.getUniqueId());
       this.summonOwners.put(entity.getUniqueId(), ownerId);
-      BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.removeSummonEntity(entity.getUniqueId()), 600L);
+      BukkitTask task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.removeSummonEntity(entity.getUniqueId()), 400L);
       this.summonExpiryTasks.put(entity.getUniqueId(), task);
       owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ZOMBIE_AMBIENT, 0.8F, 0.8F);
       return true;
@@ -988,7 +988,7 @@ final class FfaManager {
          this.recordDamage(owner, target);
          World world = trap.location().getWorld();
          if ("explosion".equals(trap.type())) {
-            target.damage(6.0, owner);
+            target.damage(5.0, owner);
             target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 255, false, false, true));
             target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 40, 128, false, false, true));
             if (world != null) {
@@ -1408,36 +1408,20 @@ final class FfaManager {
          return;
       }
 
-      long currentTick = this.plugin.getServer().getCurrentTick();
-      Long previousAttempt = this.crusherExplosionAttemptTick.put(owner.getUniqueId(), currentTick);
-      if (previousAttempt != null && previousAttempt == currentTick) {
+      double damage = this.rollCrusherExplosionFor(owner);
+      if (damage <= 0.0) {
          return;
       }
 
-      double roll = ThreadLocalRandom.current().nextDouble();
-      double damage;
-      double radius;
-      if (roll < 0.0625) {
-         damage = 32.0;
-         radius = 16.0;
-      } else if (roll < 0.125) {
-         damage = 16.0;
-         radius = 8.0;
-      } else if (roll < 0.25) {
-         damage = 8.0;
-         radius = 4.0;
-      } else if (roll < 0.5) {
-         damage = 4.0;
-         radius = 2.0;
-      } else {
-         return;
-      }
-
+      double radius = this.crusherExplosionRadius(damage);
       Location origin = target.getLocation().clone().add(0.0, 1.0, 0.0);
       this.crusherExplosionDamage.add(owner.getUniqueId());
       try {
          for (Entity nearby : target.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
             if (!(nearby instanceof LivingEntity living) || living.isDead() || living.getUniqueId().equals(owner.getUniqueId())) {
+               continue;
+            }
+            if (living.getLocation().clone().add(0.0, 1.0, 0.0).distanceSquared(origin) > radius * radius) {
                continue;
             }
             if (living instanceof Player player && !this.isPlaying(player)) {
@@ -1448,12 +1432,12 @@ final class FfaManager {
             }
 
             double distance = origin.distance(living.getLocation().clone().add(0.0, 1.0, 0.0));
-            double dealt = Math.max(1.0, damage * Math.max(0.25, 1.0 - distance / Math.max(1.0, radius)));
+            double dealt = Math.max(1.0, damage * Math.max(0.5, 1.0 - distance / Math.max(1.0, radius)));
+            living.setNoDamageTicks(0);
             if (living instanceof Player player) {
                this.recordDamage(owner, player);
-               living.damage(dealt, owner);
+               player.damage(dealt, owner);
             } else if (living instanceof org.bukkit.entity.Husk husk) {
-               husk.setNoDamageTicks(0);
                husk.setHealth(Math.max(0.0, husk.getHealth() - dealt));
             }
          }
@@ -1765,9 +1749,9 @@ final class FfaManager {
                         }
 
                         event.setDamage(0.0);
-                        double target = Math.max(0.0, victim.getHealth() - 0.5);
+                        double target = Math.max(0.0, victim.getHealth() - 4.0);
                         if (target > 0.0) {
-                           victim.setHealth(Math.max(0.5, victim.getHealth() - target));
+                           victim.setHealth(Math.max(4.0, victim.getHealth() - target));
                            mainHand.setAmount(0);
                            attacker.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
                            attacker.updateInventory();
@@ -1785,7 +1769,7 @@ final class FfaManager {
                   if (session.kit == FfaKit.BUG_MANIA
                      && this.isFfaItem(mainHand)
                      && "bug_sword".equals(this.itemKind(mainHand))
-                     && ThreadLocalRandom.current().nextInt(100) < 10) {
+                     && ThreadLocalRandom.current().nextInt(100) < 8) {
                      this.spawnBugSilverfish(attacker, victim.getLocation());
                   }
 
@@ -1983,6 +1967,7 @@ final class FfaManager {
       player.removePotionEffect(PotionEffectType.JUMP_BOOST);
       player.removePotionEffect(PotionEffectType.WEAKNESS);
       player.removePotionEffect(PotionEffectType.INFESTED);
+      player.removePotionEffect(PotionEffectType.RESISTANCE);
       player.setCooldown(Material.SPLASH_POTION, 0);
       player.setSaturatedRegenRate(10);
       player.setUnsaturatedRegenRate(80);
@@ -2018,14 +2003,15 @@ final class FfaManager {
 
       if (kit == FfaKit.VAMPIRE) {
          player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 0, false, false, true));
-         player.setSaturatedRegenRate(2);
-         player.setUnsaturatedRegenRate(20);
+         player.setSaturatedRegenRate(5);
+         player.setUnsaturatedRegenRate(40);
       }
 
       if (kit == FfaKit.GRAPPLER) {
          player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 0, false, false, true));
          player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 100, 0, false, false, true));
          player.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 100, 0, false, false, true));
+         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 100, 0, false, false, true));
       }
 
       if (kit == FfaKit.BUG_MANIA) {
@@ -2815,7 +2801,7 @@ final class FfaManager {
       if (session.kit == FfaKit.ASSASSIN && this.isFfaItem(mainHand)) {
          if ("fatal_sword".equals(itemKind) || "fatal_dagger".equals(itemKind)) {
             event.setDamage(0.0);
-            husk.setHealth(0.5);
+            husk.setHealth(Math.min(husk.getHealth(), 4.0));
          } else if ("poison_sword".equals(itemKind)) {
             husk.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 1, false, false, true));
          }
@@ -2853,6 +2839,28 @@ final class FfaManager {
 
    }
 
+   private double rollCrusherExplosionFor(Player owner) {
+      long currentTick = this.plugin.getServer().getCurrentTick();
+      long nextAllowedTick = this.crusherExplosionAttemptTick.getOrDefault(owner.getUniqueId(), 0L);
+      if (currentTick < nextAllowedTick) {
+         return 0.0;
+      }
+
+      double damage = this.rollTrainingCrusherExplosionDamage();
+      if (damage > 0.0) {
+         long cooldown = Math.max(1L, this.plugin.getConfig().getLong(this.config.kitPath(FfaKit.CRUSHER, "activation-cooldown-ticks"), 30L));
+         this.crusherExplosionAttemptTick.put(owner.getUniqueId(), currentTick + cooldown);
+      }
+      return damage;
+   }
+
+   private double crusherExplosionRadius(double damage) {
+      if (damage >= 32.0) return 8.0;
+      if (damage >= 16.0) return 5.0;
+      if (damage >= 8.0) return 3.0;
+      return 2.0;
+   }
+
    private double rollTrainingCrusherExplosionDamage() {
       int roll = ThreadLocalRandom.current().nextInt(100);
       if (roll < 50) return 0.0;
@@ -2863,12 +2871,15 @@ final class FfaManager {
    }
 
    private void applyTrainingCrusherExplosion(Player crusher, org.bukkit.entity.Husk husk, Location center) {
-      double damage = this.rollTrainingCrusherExplosionDamage();
-      if (damage <= 0.0 || crusher == null || center == null || center.getWorld() == null) {
+      if (crusher == null || center == null || center.getWorld() == null) {
+         return;
+      }
+      double damage = this.rollCrusherExplosionFor(crusher);
+      if (damage <= 0.0) {
          return;
       }
 
-      double radius = damage >= 32.0 ? 16.0 : damage >= 16.0 ? 8.0 : damage >= 8.0 ? 4.0 : 2.0;
+      double radius = this.crusherExplosionRadius(damage);
       World world = center.getWorld();
       world.spawnParticle(Particle.EXPLOSION, center.clone().add(0.0, 1.0, 0.0), Math.max(2, (int)(radius / 2.0)));
       world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 0.8F, 1.0F);
@@ -2885,6 +2896,8 @@ final class FfaManager {
             continue;
          }
 
+         double distance = center.distance(living.getLocation());
+         double dealt = Math.max(1.0, damage * Math.max(0.5, 1.0 - distance / Math.max(1.0, radius)));
          living.setNoDamageTicks(0);
          if (living instanceof Player nearbyPlayer) {
             UUID targetId = nearbyPlayer.getUniqueId();
@@ -2892,14 +2905,12 @@ final class FfaManager {
                continue;
             }
             try {
-               nearbyPlayer.damage(damage, crusher);
+               nearbyPlayer.damage(dealt, crusher);
             } finally {
                this.crusherExplosionDamage.remove(targetId);
             }
          } else {
-            AttributeInstance maxHealth = living.getAttribute(Attribute.MAX_HEALTH);
-            double maximum = maxHealth == null ? living.getHealth() : maxHealth.getValue();
-            living.setHealth(Math.max(0.0, Math.min(maximum, living.getHealth()) - damage));
+            living.setHealth(Math.max(0.0, living.getHealth() - dealt));
          }
          affected++;
       }
@@ -2927,14 +2938,14 @@ final class FfaManager {
       double damagePerTier = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-per-tier-percent"), 20.0));
       double multiplier = 1.0 + tier * damagePerTier / 100.0;
 
-      if (tier >= 2) {
+      if (tier >= 4) {
          attacker.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 0, false, false, true));
       }
 
       attacker.sendActionBar(Component.text(
          "吸血蓄積 " + String.format(Locale.ROOT, "%.1f", total)
             + " / 攻撃 x" + String.format(Locale.ROOT, "%.2f", multiplier)
-            + " / 速度 Lv." + (tier >= 2 ? 1 : 0),
+            + " / 速度 Lv." + (tier >= 4 ? 1 : 0),
          NamedTextColor.RED
       ));
       return multiplier;
