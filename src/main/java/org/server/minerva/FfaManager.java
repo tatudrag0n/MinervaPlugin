@@ -1814,6 +1814,7 @@ final class FfaManager {
                      int restored = Math.max(1, (int)Math.ceil(hungerGain));
                      attacker.setFoodLevel(Math.min(20, before + restored));
                      attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
+                     attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
                      attacker.sendActionBar(Component.text("吸血 満腹度 +" + (attacker.getFoodLevel() - before), NamedTextColor.RED));
                   }
                }
@@ -2017,8 +2018,8 @@ final class FfaManager {
 
       if (kit == FfaKit.VAMPIRE) {
          player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 0, false, false, true));
-         player.setSaturatedRegenRate(3);
-         player.setUnsaturatedRegenRate(27);
+         player.setSaturatedRegenRate(2);
+         player.setUnsaturatedRegenRate(20);
       }
 
       if (kit == FfaKit.GRAPPLER) {
@@ -2844,6 +2845,19 @@ final class FfaManager {
       if (session.kit == FfaKit.CRUSHER) {
          husk.getWorld().spawnParticle(Particle.EXPLOSION, husk.getLocation().add(0.0, 1.0, 0.0), 2);
       }
+      if (session.kit == FfaKit.VAMPIRE && !event.isCancelled() && event.getDamage() > 0.0) {
+         double dealt = Math.max(0.0, event.getDamage());
+         double total = this.vampireDamage.merge(attacker.getUniqueId(), dealt, Double::sum);
+         int restored = Math.max(1, (int)Math.ceil(dealt * 0.5));
+         attacker.setFoodLevel(Math.min(20, attacker.getFoodLevel() + restored));
+         attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
+         attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
+         double threshold = Math.max(1.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-threshold"), 50.0));
+         int tier = Math.max(0, (int)Math.floor(total / threshold));
+         attacker.sendActionBar(Component.text("吸血蓄積 " + String.format(Locale.ROOT, "%.1f", total) + " / 攻撃強化 Lv." + tier, NamedTextColor.RED));
+         attacker.sendMessage("§4ヴァンパイア累計ダメージ: §c" + String.format(Locale.ROOT, "%.1f", total) + " §7/ 攻撃強化 Lv." + tier);
+      }
+
    }
 
 }
