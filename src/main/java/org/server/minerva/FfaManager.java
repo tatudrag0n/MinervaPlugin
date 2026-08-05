@@ -2889,18 +2889,17 @@ final class FfaManager {
       double threshold = Math.max(1.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-threshold"), 50.0));
       int maxTier = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.VAMPIRE, "max-damage-buff-tier"), 5));
       int tier = Math.min(maxTier, Math.max(0, (int)Math.floor(total / threshold)));
-      double damagePerTier = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-per-tier-percent"), 10.0));
+      double damagePerTier = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "damage-buff-per-tier-percent"), 20.0));
       double multiplier = 1.0 + tier * damagePerTier / 100.0;
 
-      if (tier > 0) {
-         int speedAmplifier = Math.min(2, (tier - 1) / 2);
-         attacker.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, speedAmplifier, false, false, true));
+      if (tier >= 2) {
+         attacker.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 0, false, false, true));
       }
 
       attacker.sendActionBar(Component.text(
          "吸血蓄積 " + String.format(Locale.ROOT, "%.1f", total)
             + " / 攻撃 x" + String.format(Locale.ROOT, "%.2f", multiplier)
-            + " / 速度 Lv." + (tier <= 0 ? 0 : Math.min(3, (tier + 1) / 2)),
+            + " / 速度 Lv." + (tier >= 2 ? 1 : 0),
          NamedTextColor.RED
       ));
       return multiplier;
