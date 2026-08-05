@@ -156,6 +156,21 @@ manager = manager.replace('adjustTrainingVillagerDamage', 'adjustTrainingHuskDam
 manager = manager.replace('org.bukkit.entity.Villager villager', 'org.bukkit.entity.Husk husk')
 manager = manager.replace('villager', 'husk')
 
+# 7) Restore all three Assassin starting items.
+old_assassin = '''         case ASSASSIN:
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "invisibility_potion", Material.POTION, "§7透明化ポーション", 1, Map.of())});
+            break;
+'''
+new_assassin = '''         case ASSASSIN:
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "fatal_dagger", Material.GOLDEN_SWORD, "§4致命の短剣", 1, Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "poison_sword", Material.STONE_SWORD, "§2毒の短剣", 1, Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "invisibility_potion", Material.POTION, "§7透明化ポーション", 1, Map.of())});
+            break;
+'''
+if old_assassin not in kit:
+    raise SystemExit('assassin item block not found')
+kit = kit.replace(old_assassin, new_assassin, 1)
+
 manager_path.write_text(manager, encoding='utf-8', newline='\n')
 listener_path.write_text(listener, encoding='utf-8', newline='\n')
 kit_path.write_text(kit, encoding='utf-8', newline='\n')
