@@ -261,6 +261,13 @@ final class FfaListener implements Listener {
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+      Projectile projectile = event.getEntity();
+      if (projectile.getShooter() instanceof Player player
+         && this.ffa.isPlaying(player)
+         && (projectile instanceof org.bukkit.entity.AbstractArrow
+            || projectile.getType() == org.bukkit.entity.EntityType.WIND_CHARGE)) {
+         event.setCancelled(false);
+      }
       this.ffa.handleProjectileLaunch(event);
    }
 

@@ -607,17 +607,16 @@ final class FfaManager {
             player.setCooldown(Material.WIND_CHARGE, 40);
             ItemStack restoredWindCharge = item.clone();
             restoredWindCharge.setAmount(1);
-            this.plugin.getServer().getScheduler().runTask(this.plugin, () -> {
+            this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
                if (player.isOnline() && this.isPlaying(player)) {
                   FfaManager.FfaSession current = this.sessions.get(player.getUniqueId());
-                  if (current != null && current.kit == FfaKit.MACE) {
-                     this.removeFfaItems(player, "wind_charge");
+                  if (current != null && current.kit == FfaKit.MACE && this.countFfaItem(player, "wind_charge") <= 0) {
                      this.tagOwner(restoredWindCharge, player.getUniqueId());
                      player.getInventory().addItem(restoredWindCharge);
                      player.updateInventory();
                   }
                }
-            });
+            }, 3L);
          }
 
          return false;
@@ -1593,10 +1592,6 @@ final class FfaManager {
       String label,
       String projectileKind
    ) {
-      if (this.isDuplicateCrossbowShot(player)) {
-         return;
-      }
-
       FfaManager.FfaSession session = this.sessions.get(player.getUniqueId());
          if (session == null || session.kit != expectedKit) {
             event.setCancelled(true);
@@ -1618,6 +1613,7 @@ final class FfaManager {
                   this.startCrossbowReload(player, expectedKit, ammoMap, reloadTasks, capacity, label);
                }
             } else {
+               event.setCancelled(false);
                ammoMap.put(player.getUniqueId(), --ammo);
                if (event.getProjectile() instanceof Entity projectile) {
                   projectile.getPersistentDataContainer().set(this.projectileKindKey, PersistentDataType.STRING, projectileKind);
