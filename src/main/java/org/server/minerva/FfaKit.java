@@ -282,6 +282,7 @@ enum FfaKit {
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_explosion", Material.STONE_PRESSURE_PLATE, "§c爆発する感圧板", 1, Map.of())});
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_web", Material.OAK_PRESSURE_PLATE, "§f蜘蛛の巣になる感圧板", 1, Map.of())});
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_poison", Material.SPRUCE_PRESSURE_PLATE, "§2毒になる感圧板", 1, Map.of())});
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "trap_fire", Material.CRIMSON_PRESSURE_PLATE, "§6火炎トラップ", 1, Map.of())});
             break;
          case BUG_MANIA:
             inventory.addItem(new ItemStack[]{kitItem(plugin, this, "bug_sword", Material.STONE_SWORD, "§2虫食いの剣", 1, Map.of())});

@@ -938,6 +938,7 @@ final class FfaManager {
          case "explosion" -> Material.STONE_PRESSURE_PLATE;
          case "web" -> Material.OAK_PRESSURE_PLATE;
          case "poison" -> Material.SPRUCE_PRESSURE_PLATE;
+         case "fire" -> Material.CRIMSON_PRESSURE_PLATE;
          default -> null;
       };
    }
@@ -1005,12 +1006,45 @@ final class FfaManager {
                cloud.addCustomEffect(new PotionEffect(PotionEffectType.POISON, 100, 1), true);
                world.playSound(trap.location(), Sound.ENTITY_SPIDER_AMBIENT, 0.8F, 1.0F);
             }
-         } else {
-            if ("web".equals(trap.type())) {
-               this.placeTemporaryWebs(target.getLocation());
-            }
+         } else if ("fire".equals(trap.type())) {
+            this.triggerFireTrap(owner, trap.location().clone().add(0.5, 0.2, 0.5));
+         } else if ("web".equals(trap.type())) {
+            this.placeTemporaryWebs(target.getLocation());
          }
       }
+   }
+
+   private void triggerFireTrap(Player owner, Location center) {
+      World world = center.getWorld();
+      if (world == null) {
+         return;
+      }
+
+      double radius = Math.max(0.5, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.TRAPPER, "fire-trap-radius"), 2.5));
+      double initialDamage = Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.TRAPPER, "fire-trap-initial-damage"), 2.0));
+      int burnTicks = Math.max(20, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.TRAPPER, "fire-trap-burn-seconds"), 6) * 20);
+      int affected = 0;
+
+      for (Player player : world.getPlayers()) {
+         if (!this.isPlaying(player) || player.getUniqueId().equals(owner.getUniqueId())) {
+            continue;
+         }
+         if (player.getLocation().distanceSquared(center) > radius * radius) {
+            continue;
+         }
+
+         this.recordDamage(owner, player);
+         player.setNoDamageTicks(0);
+         if (initialDamage > 0.0) {
+            player.damage(initialDamage, owner);
+         }
+         player.setFireTicks(Math.max(player.getFireTicks(), burnTicks));
+         affected++;
+      }
+
+      world.spawnParticle(Particle.FLAME, center.clone().add(0.0, 0.6, 0.0), 45, radius * 0.45, 0.55, radius * 0.45, 0.02);
+      world.playSound(center, Sound.ENTITY_BLAZE_SHOOT, 1.0F, 0.85F);
+      owner.sendActionBar(Component.text("火炎トラップ発動 / " + affected + "人を炎上", NamedTextColor.GOLD));
    }
 
    private void placeTemporaryWebs(Location center) {

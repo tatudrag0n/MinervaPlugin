@@ -569,6 +569,9 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.necromancer.max-summons", 5);
       this.setIfMissing(config, "ffa.kits.trapper.trap-duration-seconds", 30);
       this.setIfMissing(config, "ffa.kits.trapper.trap-cooldown-seconds", 20);
+      this.setIfMissing(config, "ffa.kits.trapper.fire-trap-initial-damage", 2.0);
+      this.setIfMissing(config, "ffa.kits.trapper.fire-trap-burn-seconds", 6);
+      this.setIfMissing(config, "ffa.kits.trapper.fire-trap-radius", 2.5);
       this.setIfMissing(config, "ffa.kits.bug_mania.max-owned-silverfish", 6);
       this.setIfMissing(config, "ffa.kits.bug_mania.max-global-silverfish", 30);
       this.setIfMissing(config, "ffa.kits.crusher.display-name", "§cクラッシャー");
