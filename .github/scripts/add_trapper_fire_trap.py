@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered after the workflow was registered.
 
 def replace_method(source: str, signature: str, replacement: str) -> str:
     start = source.find(signature)
