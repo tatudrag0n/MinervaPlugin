@@ -146,8 +146,8 @@ enum FfaKit {
                      plugin,
                      this,
                      "weapon",
-                     material(this.configValue(config, "weapon", "iron_axe"), Material.IRON_AXE),
-                     "§6戦士の鉄斧",
+                     material(this.configValue(config, "weapon", "diamond_axe"), Material.DIAMOND_AXE),
+                     "§6戦士のダイヤ斧",
                      1,
                      this.enchantments(config, "weapon-enchantments", Map.of("sharpness", 2))
                   )
@@ -167,9 +167,11 @@ enum FfaKit {
             Material spear = this.spearMaterial(config, plugin, true);
             if (spear != null) {
                inventory.addItem(
-                  new ItemStack[]{kitItem(plugin, this, "spear", spear, "§e槍使いの鉄槍", 1, this.enchantments(config, "weapon-enchantments", Map.of()))}
+                  new ItemStack[]{kitItem(plugin, this, "spear", spear, "§e槍使いの鉄槍", 1, this.enchantments(config, "weapon-enchantments", Map.of("lunge", 2)))}
                );
             }
+            Material spearBackup = material(this.configValue(config, "backup-weapon", "iron_sword"), Material.IRON_SWORD);
+            inventory.addItem(new ItemStack[]{kitItem(plugin, this, "backup_weapon", spearBackup, "§e槍使いの鉄剣", 1, Map.of())});
             break;
          case CROSSBOW:
             inventory.addItem(

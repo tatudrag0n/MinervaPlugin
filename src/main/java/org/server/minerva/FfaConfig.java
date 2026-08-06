@@ -82,22 +82,22 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.spear.icon", "iron_spear");
       this.setIfMissing(config, "ffa.kits.spear.armor-tier", "chainmail");
       this.setArmorDefault(
-         config, "spear", migrateBalancedArmor || migratePermanentKits, "chainmail_helmet", "iron_chestplate", "chainmail_leggings", "chainmail_boots"
+         config, "spear", true, "chainmail_helmet", "iron_chestplate", "iron_leggings", "chainmail_boots"
       );
       this.setIfMissing(config, "ffa.kits.spear.weapon", "iron_spear");
-      this.setIfMissing(config, "ffa.kits.spear.backup-weapon", "stone_sword");
+      this.setIfMissingOrForce(config, "ffa.kits.spear.backup-weapon", "iron_sword", true);
       this.setIfMissing(config, "ffa.kits.spear.allow-fallback", false);
       this.setIfMissing(config, "ffa.kits.spear.fallback-weapon", "trident");
       this.setIfMissing(config, "ffa.kits.spear.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.food-items", List.of("baked_potato:10"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.potions", List.of(), migratePermanentKits);
-      this.setListIfMissingOrEmpty(config, "ffa.kits.spear.weapon-enchantments", List.of("lunge:1"));
+      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.spear.weapon-enchantments", List.of("lunge:2"), true);
       this.setDisplayName(config, "ffa.kits.axe.display-name", "§6ウォリアー", "§6斧キット");
       this.setIfMissingOrForce(config, "ffa.kits.axe.icon", "iron_axe", migratePermanentKits);
       this.setIfMissingOrForce(config, "ffa.kits.axe.armor-tier", "iron", migratePermanentKits);
-      this.setArmorDefault(config, "axe", migrateBalancedArmor || migratePermanentKits, "iron_helmet", "iron_chestplate", "chainmail_leggings", "iron_boots");
-      this.setIfMissingOrForce(config, "ffa.kits.axe.weapon", "iron_axe", migratePermanentKits);
+      this.setArmorDefault(config, "axe", true, "iron_helmet", "diamond_chestplate", "iron_leggings", "iron_boots");
+      this.setIfMissingOrForce(config, "ffa.kits.axe.weapon", "diamond_axe", true);
       this.setIfMissing(config, "ffa.kits.axe.food", 16);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.food-items", List.of("cooked_porkchop:5"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.items", List.of(), migratePermanentKits);
