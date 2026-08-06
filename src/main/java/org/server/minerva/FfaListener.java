@@ -84,6 +84,10 @@ final class FfaListener implements Listener {
          event.setCancelled(true);
       } else if (event.getEntity() instanceof Player victim) {
          Entity var9 = event.getDamager();
+         if (var9 instanceof org.bukkit.entity.Silverfish && this.ffa.isBugMania(victim)) {
+            event.setCancelled(true);
+            return;
+         }
          boolean isBugSilverfish = false;
          Player bugOwner = null;
          if (var9 != null && "bug_silverfish".equals(var9.getPersistentDataContainer().get(this.ffa.entityKindKey(), PersistentDataType.STRING))) {

@@ -1266,6 +1266,16 @@ final class FfaManager {
 
    void handleEntityTarget(EntityTargetLivingEntityEvent event) {
       Entity entity = event.getEntity();
+      if (entity instanceof org.bukkit.entity.Silverfish
+         && event.getTarget() instanceof Player player
+         && this.isBugMania(player)) {
+         event.setCancelled(true);
+         if (entity instanceof Mob mob) {
+            mob.setTarget(null);
+         }
+         return;
+      }
+
       String kind = entity.getPersistentDataContainer().get(this.entityKindKey, PersistentDataType.STRING);
       if ("summon".equals(kind)) {
          UUID ownerId = this.summonOwners.get(entity.getUniqueId());
