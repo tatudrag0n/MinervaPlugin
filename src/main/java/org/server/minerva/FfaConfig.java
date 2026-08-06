@@ -574,6 +574,9 @@ final class FfaConfig {
       this.setIfMissing(config, "ffa.kits.trapper.fire-trap-radius", 2.5);
       this.setIfMissing(config, "ffa.kits.bug_mania.max-owned-silverfish", 6);
       this.setIfMissing(config, "ffa.kits.bug_mania.max-global-silverfish", 30);
+      this.setIfMissing(config, "ffa.kits.bug_mania.attack-summon-chance-percent", 15);
+      this.setIfMissing(config, "ffa.kits.bug_mania.counter-infestation-chance-percent", 20);
+      this.setIfMissing(config, "ffa.kits.bug_mania.silverfish-death-infestation-chance-percent", 10);
       this.setIfMissing(config, "ffa.kits.crusher.display-name", "§cクラッシャー");
       this.setIfMissing(config, "ffa.kits.crusher.icon", "tnt");
       this.setIfMissing(config, "ffa.kits.crusher.armor-tier", "leather");

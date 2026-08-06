@@ -1153,6 +1153,17 @@ final class FfaManager {
       return best;
    }
 
+   private boolean rollBugManiaChance(String setting, int fallbackPercent) {
+      int chance = Math.max(
+         0,
+         Math.min(
+            100,
+            this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.BUG_MANIA, setting), fallbackPercent)
+         )
+      );
+      return chance >= 100 || chance > 0 && ThreadLocalRandom.current().nextInt(100) < chance;
+   }
+
    private void spawnBugSilverfish(Player owner, Location location) {
       int globalMax = Math.max(1, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.BUG_MANIA, "max-global-silverfish"), 30));
 
@@ -1244,7 +1255,9 @@ final class FfaManager {
          } else if ("bug_silverfish".equals(kind)) {
             this.clearBugEntityState(entityId);
             Player killer = event.getEntity().getKiller();
-            if (killer != null && (owner == null || !owner.equals(killer.getUniqueId())) && ThreadLocalRandom.current().nextInt(100) < 5) {
+            if (killer != null
+               && (owner == null || !owner.equals(killer.getUniqueId()))
+               && this.rollBugManiaChance("silverfish-death-infestation-chance-percent", 10)) {
                killer.addPotionEffect(new PotionEffect(PotionEffectType.INFESTED, 1200, 0, false, false, true));
             }
          }
@@ -1803,12 +1816,14 @@ final class FfaManager {
                   if (session.kit == FfaKit.BUG_MANIA
                      && this.isFfaItem(mainHand)
                      && "bug_sword".equals(this.itemKind(mainHand))
-                     && ThreadLocalRandom.current().nextInt(100) < 8) {
+                     && this.rollBugManiaChance("attack-summon-chance-percent", 15)) {
                      this.spawnBugSilverfish(attacker, victim.getLocation());
                   }
 
                   FfaManager.FfaSession victimSession = this.sessions.get(victim.getUniqueId());
-                  if (victimSession != null && victimSession.kit == FfaKit.BUG_MANIA && ThreadLocalRandom.current().nextInt(100) < 10) {
+                  if (victimSession != null
+                     && victimSession.kit == FfaKit.BUG_MANIA
+                     && this.rollBugManiaChance("counter-infestation-chance-percent", 20)) {
                      attacker.addPotionEffect(new PotionEffect(PotionEffectType.INFESTED, 1200, 0, false, false, true));
                      attacker.sendActionBar(Component.text("虫食いを受けました", NamedTextColor.DARK_GREEN));
                   }
@@ -2837,7 +2852,7 @@ final class FfaManager {
       }
 
       if (session.kit == FfaKit.BUG_MANIA && this.isFfaItem(mainHand) && "bug_sword".equals(itemKind)
-         && ThreadLocalRandom.current().nextInt(100) < 10) {
+         && this.rollBugManiaChance("attack-summon-chance-percent", 15)) {
          this.spawnBugSilverfish(attacker, husk.getLocation());
       }
 
