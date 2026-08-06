@@ -1748,15 +1748,16 @@ final class FfaManager {
                   this.capFinalDamage(event, 12.0);
                }
 
+               boolean crusherExplosionEvent = this.crusherExplosionDamage.contains(attacker.getUniqueId());
                FfaManager.FfaSession victimSessionForCrusher = this.sessions.get(victim.getUniqueId());
-               if (victimSessionForCrusher != null && victimSessionForCrusher.kit == FfaKit.CRUSHER) {
+               if (!crusherExplosionEvent && victimSessionForCrusher != null && victimSessionForCrusher.kit == FfaKit.CRUSHER) {
                   this.triggerCrusherExplosion(victim, attacker, false);
                }
 
                this.applyGamblerIncoming(event, victim);
                FfaManager.FfaSession session = this.sessions.get(attacker.getUniqueId());
                if (session != null) {
-                  if (session.kit == FfaKit.CRUSHER) {
+                  if (!crusherExplosionEvent && session.kit == FfaKit.CRUSHER) {
                      this.triggerCrusherExplosion(attacker, victim, true);
                   }
 
