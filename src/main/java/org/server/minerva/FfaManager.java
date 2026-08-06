@@ -1462,6 +1462,7 @@ final class FfaManager {
 
       double radius = this.crusherExplosionRadius(damage);
       Location origin = target.getLocation().clone().add(0.0, 1.0, 0.0);
+      int affected = 0;
       this.crusherExplosionDamage.add(owner.getUniqueId());
       try {
          for (Entity nearby : target.getWorld().getNearbyEntities(origin, radius, radius, radius)) {
@@ -1487,6 +1488,7 @@ final class FfaManager {
             } else if (living instanceof org.bukkit.entity.Husk husk) {
                husk.setHealth(Math.max(0.0, husk.getHealth() - dealt));
             }
+            affected++;
          }
       } finally {
          this.crusherExplosionDamage.remove(owner.getUniqueId());
@@ -1494,6 +1496,10 @@ final class FfaManager {
 
       owner.getWorld().spawnParticle(Particle.EXPLOSION, origin, damage >= 16.0 ? 4 : 2, 0.8, 0.5, 0.8, 0.05);
       owner.getWorld().playSound(origin, Sound.ENTITY_GENERIC_EXPLODE, damage >= 16.0 ? 1.5F : 0.9F, damage >= 16.0 ? 0.6F : 1.2F);
+      owner.sendActionBar(Component.text(
+         "クラッシャー爆発 " + (int)damage + "ダメージ / 範囲" + (int)radius + " / " + affected + "体",
+         NamedTextColor.GOLD
+      ));
    }
 
    private void capFinalDamage(EntityDamageByEntityEvent event, double cap) {
@@ -2493,8 +2499,8 @@ final class FfaManager {
          int var7 = Math.max(var4, var5);
          int var8 = ThreadLocalRandom.current().nextInt(var6, var7 + 1);
          var1.setDamage(Math.max(0.0, var1.getDamage() - var8));
-         var2.sendActionBar(Component.text("防御補正 " + (var8 >= 0 ? "-" : "+") + Math.abs(var8), var8 >= 0 ? NamedTextColor.GREEN : NamedTextColor.RED));
-         var2.sendTitle("", "§6防御補正 §e" + var8, 0, 20, 5);
+         String shown = (var8 >= 0 ? "-" : "+") + Math.abs(var8);
+         var2.sendMessage((var8 >= 0 ? "§a" : "§c") + "防御補正 " + shown + "ダメージ");
       }
    }
 
