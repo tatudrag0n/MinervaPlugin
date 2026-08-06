@@ -554,6 +554,7 @@ final class FfaConfig {
       this.setIfMissingOrForce(config, "ffa.kits.assassin.armor.leggings", "none", true);
       this.setIfMissingOrForce(config, "ffa.kits.assassin.armor.boots", "none", true);
       this.setListIfMissingOrEmpty(config, "ffa.kits.assassin.fatal-sword-enchantments", List.of("unbreaking:1"));
+      this.setIfMissingOrForce(config, "ffa.kits.assassin.poison-duration-seconds", 4, true);
       this.setIfMissingOrForce(config, "ffa.kits.mace.wind-charge", 10, forceKitBalance);
       this.setIfMissing(config, "ffa.kits.mace.wind-charge-refill-seconds", 10);
       this.setIfMissing(config, "ffa.kits.mace.max-final-damage", 12.0);

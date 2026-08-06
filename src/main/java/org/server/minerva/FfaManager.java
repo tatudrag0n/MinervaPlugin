@@ -1826,7 +1826,7 @@ final class FfaManager {
                      }
 
                      if ("poison_sword".equals(kind)) {
-                        victim.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 1, false, false, true));
+                        victim.addPotionEffect(new PotionEffect(PotionEffectType.POISON, Math.max(20, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.ASSASSIN, "poison-duration-seconds"), 4) * 20), 1, false, false, true));
                      }
                   }
 
@@ -2864,7 +2864,7 @@ final class FfaManager {
             event.setDamage(0.0);
             husk.setHealth(Math.min(husk.getHealth(), 4.0));
          } else if ("poison_sword".equals(itemKind)) {
-            husk.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 40, 1, false, false, true));
+            husk.addPotionEffect(new PotionEffect(PotionEffectType.POISON, Math.max(20, this.plugin.getConfig().getInt(this.config.kitPath(FfaKit.ASSASSIN, "poison-duration-seconds"), 4) * 20), 1, false, false, true));
          }
       }
 
