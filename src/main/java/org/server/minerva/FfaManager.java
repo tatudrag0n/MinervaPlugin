@@ -1824,16 +1824,11 @@ final class FfaManager {
                   if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {
                      double multiplier = this.applyVampireProgression(attacker, event.getDamage());
                      event.setDamage(event.getDamage() * multiplier);
-                     double dealt = Math.max(0.0, event.getFinalDamage());
-                     double hungerGain = dealt
-                        * Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "hunger-steal-percent"), 50.0))
-                        / 100.0;
-                     int before = attacker.getFoodLevel();
-                     int restored = Math.max(1, (int)Math.ceil(hungerGain));
-                     attacker.setFoodLevel(Math.min(20, before + restored));
-                     attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
-                     attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
-                     attacker.sendActionBar(Component.text("吸血 満腹度 +" + (attacker.getFoodLevel() - before), NamedTextColor.RED));
+                     double dealt = Math.min(
+                        victim.getHealth() + victim.getAbsorptionAmount(),
+                        Math.max(0.0, event.getFinalDamage())
+                     );
+                     this.applyVampireSteal(attacker, dealt);
                   }
                }
             }
@@ -2846,13 +2841,6 @@ final class FfaManager {
          this.spawnBugSilverfish(attacker, husk.getLocation());
       }
 
-      if (session.kit == FfaKit.VAMPIRE && event.getFinalDamage() > 0.0) {
-         int before = attacker.getFoodLevel();
-         int restored = Math.max(1, (int)Math.ceil(event.getFinalDamage() * 0.5));
-         attacker.setFoodLevel(Math.min(20, before + restored));
-         attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
-      }
-
       if (session.kit == FfaKit.MACE && this.isFfaItem(mainHand) && "mace".equals(itemKind)) {
          this.capFinalDamage(event, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.MACE, "max-final-damage"), 12.0));
       }
@@ -2864,11 +2852,8 @@ final class FfaManager {
       if (session.kit == FfaKit.VAMPIRE && !event.isCancelled() && event.getDamage() > 0.0) {
          double multiplier = this.applyVampireProgression(attacker, event.getDamage());
          event.setDamage(event.getDamage() * multiplier);
-         double dealt = Math.max(0.0, event.getDamage());
-         int restored = Math.max(1, (int)Math.ceil(dealt * 0.5));
-         attacker.setFoodLevel(Math.min(20, attacker.getFoodLevel() + restored));
-         attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
-         attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
+         double dealt = Math.min(husk.getHealth(), Math.max(0.0, event.getFinalDamage()));
+         this.applyVampireSteal(attacker, dealt);
       }
 
    }
@@ -2960,6 +2945,34 @@ final class FfaManager {
       FfaManager.FfaSession session = this.sessions.get(victim.getUniqueId());
       if (session != null && session.kit == FfaKit.CRUSHER) {
          this.applyTrainingCrusherExplosion(victim, husk, victim.getLocation());
+      }
+   }
+
+   private void applyVampireSteal(Player attacker, double dealtDamage) {
+      double dealt = Math.max(0.0, dealtDamage);
+      if (dealt <= 0.0) {
+         return;
+      }
+
+      double lifestealPercent = Math.max(
+         0.0,
+         this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "lifesteal-percent"), 30.0)
+      );
+      double requestedHealing = dealt * lifestealPercent / 100.0;
+      AttributeInstance maxHealthAttribute = attacker.getAttribute(Attribute.MAX_HEALTH);
+      double maxHealth = maxHealthAttribute == null ? 20.0 : maxHealthAttribute.getValue();
+      if (requestedHealing > 0.0 && attacker.getHealth() < maxHealth) {
+         attacker.setHealth(Math.min(maxHealth, attacker.getHealth() + requestedHealing));
+      }
+
+      double hungerGain = dealt
+         * Math.max(0.0, this.plugin.getConfig().getDouble(this.config.kitPath(FfaKit.VAMPIRE, "hunger-steal-percent"), 30.0))
+         / 100.0;
+      if (hungerGain > 0.0) {
+         int restored = Math.max(1, (int)Math.ceil(hungerGain));
+         attacker.setFoodLevel(Math.min(20, attacker.getFoodLevel() + restored));
+         attacker.setSaturation(Math.min(20.0F, attacker.getSaturation() + Math.max(1.0F, restored * 0.5F)));
+         attacker.setExhaustion(Math.max(0.0F, attacker.getExhaustion() - Math.max(1.0F, restored * 0.5F)));
       }
    }
 
