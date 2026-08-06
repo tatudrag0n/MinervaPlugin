@@ -102,3 +102,5 @@ if 'private void applyVampireSteal(' not in text:
     text = text.replace(marker, helper + marker, 1)
 
 path.write_text(text, encoding='utf-8', newline='\n')
+
+# Trigger the repair workflow after the workflow file exists.
