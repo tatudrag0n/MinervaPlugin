@@ -102,7 +102,7 @@ final class FfaConfig {
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.food-items", List.of("cooked_porkchop:5"), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.items", List.of(), migratePermanentKits);
       this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.potions", List.of(), migratePermanentKits);
-      this.setListIfMissingOrEmpty(config, "ffa.kits.axe.weapon-enchantments", List.of("sharpness:1"));
+      this.setListIfMissingOrEmptyOrForce(config, "ffa.kits.axe.weapon-enchantments", List.of("sharpness:2"), true);
       this.setIfMissing(config, "ffa.kits.axe.slowness-amplifier", 0);
       this.setDisplayName(config, "ffa.kits.crossbow.display-name", "§dリボルバー", "§dクロスボウキット");
       this.setIfMissing(config, "ffa.kits.crossbow.icon", "crossbow");

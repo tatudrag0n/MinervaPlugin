@@ -149,7 +149,7 @@ enum FfaKit {
                      material(this.configValue(config, "weapon", "iron_axe"), Material.IRON_AXE),
                      "§6戦士の鉄斧",
                      1,
-                     this.enchantments(config, "weapon-enchantments", Map.of("sharpness", 1))
+                     this.enchantments(config, "weapon-enchantments", Map.of("sharpness", 2))
                   )
                }
             );
