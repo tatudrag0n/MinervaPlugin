@@ -1,6 +1,7 @@
 package org.server.minerva;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -171,21 +172,23 @@ final class SlotMachineManager implements Listener {
 
    private void animate(final SlotMachineManager.SpinSession session, final int rerolls) {
       session.rerolls = rerolls;
-      session.stopping = false;
+      session.pendingResult = null;
+      session.pendingCompletion = null;
+      Arrays.fill(session.stoppedColumns, false);
       session.task = (new BukkitRunnable() {
             private int tick;
 
             public void run() {
                if (session.player.isOnline() && SlotMachineManager.this.difficultyAt(session.shelf) == session.difficulty) {
-                  SlotMachineManager.this.updateShelfDisplay(
-                     session.shelf,
-                     List.of(
-                        SlotMachineManager.this.randomPreview(session.jackpotMode),
-                        SlotMachineManager.this.randomPreview(session.jackpotMode),
-                        SlotMachineManager.this.randomPreview(session.jackpotMode)
-                     ),
-                     session.jackpotMode
-                  );
+                  List<SlotMachineManager.Symbol> display = new ArrayList<>(3);
+                  for (int column = 0; column < 3; column++) {
+                     if (session.stoppedColumns[column] && session.pendingResult != null) {
+                        display.add(session.pendingResult.get(column));
+                     } else {
+                        display.add(SlotMachineManager.this.randomPreview(session.jackpotMode));
+                     }
+                  }
+                  SlotMachineManager.this.updateShelfDisplay(session.shelf, display, session.jackpotMode);
                   session.shelf.getWorld().playSound(session.shelf.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.35F, 0.8F + this.tick * 0.03F);
                   this.tick++;
                } else {
@@ -212,7 +215,7 @@ final class SlotMachineManager implements Listener {
                session.player.sendMessage("§c§lREDSTONE! §e無料で再抽選します。");
                session.shelf.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, session.shelf.getLocation().add(0.5, 0.8, 0.5), 25, 0.5, 0.4, 0.5, 0.05);
                session.shelf.getWorld().playSound(session.shelf.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 0.8F, 1.4F);
-               session.task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> { session.stopping = false; this.animate(session, rerolls + 1); }, 10L);
+               session.task = this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> this.animate(session, rerolls + 1), 10L);
             }
          );
       } else {
@@ -259,65 +262,98 @@ final class SlotMachineManager implements Listener {
          );
    }
 
-   private void revealResult(final SlotMachineManager.SpinSession session, final List<SlotMachineManager.Symbol> result, final int startColumn, final Runnable onComplete) {
-      session.task = (new BukkitRunnable() {
-         private int fixedColumns;
-
-         public void run() {
-            if (session.player.isOnline() && SlotMachineManager.this.difficultyAt(session.shelf) == session.difficulty) {
-               this.fixedColumns++;
-               List<SlotMachineManager.Symbol> display = new ArrayList<>(List.of(
-                  SlotMachineManager.this.randomPreview(session.jackpotMode),
-                  SlotMachineManager.this.randomPreview(session.jackpotMode),
-                  SlotMachineManager.this.randomPreview(session.jackpotMode)
-               ));
-
-               for (int fixed = 0; fixed < this.fixedColumns; fixed++) {
-                  int column = (startColumn + fixed) % 3;
-                  display.set(column, result.get(column));
-               }
-
-               SlotMachineManager.this.updateShelfDisplay(session.shelf, display, session.jackpotMode);
-               session.shelf.getWorld().playSound(session.shelf.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7F, 0.9F + this.fixedColumns * 0.2F);
-               if (this.fixedColumns >= 3) {
-                  this.cancel();
-                  onComplete.run();
-               }
-            } else {
-               SlotMachineManager.this.finishSession(session);
-               this.cancel();
-            }
-         }
-      }).runTaskTimer(this.plugin, 0L, 6L);
+   private void revealResult(
+      final SlotMachineManager.SpinSession session,
+      final List<SlotMachineManager.Symbol> result,
+      final int startColumn,
+      final Runnable onComplete
+   ) {
+      session.pendingResult = new ArrayList<>(result);
+      session.pendingCompletion = onComplete;
+      this.stopSingleColumn(session, startColumn);
    }
 
-   private void requestStop(SlotMachineManager.SpinSession session, int startColumn) {
-      if (session == null || session.stopping) {
+   private void requestStop(SlotMachineManager.SpinSession session, int column) {
+      if (session == null || column < 0 || column >= 3 || session.stoppedColumns[column]) {
          return;
       }
-      session.stopping = true;
+
+      if (session.pendingResult == null) {
+         this.determineResult(session, session.rerolls, column);
+      } else {
+         this.stopSingleColumn(session, column);
+      }
+   }
+
+   private void stopSingleColumn(SlotMachineManager.SpinSession session, int column) {
+      if (session == null || session.pendingResult == null || column < 0 || column >= 3 || session.stoppedColumns[column]) {
+         return;
+      }
+
+      session.stoppedColumns[column] = true;
+      session.shelf.getWorld().playSound(session.shelf.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.9F, 1.0F + column * 0.2F);
+
+      List<SlotMachineManager.Symbol> display = new ArrayList<>(3);
+      boolean allStopped = true;
+      for (int current = 0; current < 3; current++) {
+         if (session.stoppedColumns[current]) {
+            display.add(session.pendingResult.get(current));
+         } else {
+            allStopped = false;
+            display.add(this.randomPreview(session.jackpotMode));
+         }
+      }
+      this.updateShelfDisplay(session.shelf, display, session.jackpotMode);
+
+      if (!allStopped) {
+         session.player.sendActionBar(net.kyori.adventure.text.Component.text(
+            "停止済み " + this.stoppedColumnCount(session) + "/3 — 次に止める列を右クリック",
+            net.kyori.adventure.text.format.NamedTextColor.YELLOW
+         ));
+         return;
+      }
+
       if (session.task != null) {
          session.task.cancel();
          session.task = null;
       }
-      session.shelf.getWorld().playSound(session.shelf.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.9F, 1.6F);
-      this.determineResult(session, session.rerolls, Math.max(0, Math.min(2, startColumn)));
+      this.updateShelfDisplay(session.shelf, session.pendingResult, session.jackpotMode);
+      Runnable completion = session.pendingCompletion;
+      session.pendingCompletion = null;
+      if (completion != null) {
+         completion.run();
+      }
+   }
+
+   private int stoppedColumnCount(SlotMachineManager.SpinSession session) {
+      int count = 0;
+      for (boolean stopped : session.stoppedColumns) {
+         if (stopped) {
+            count++;
+         }
+      }
+      return count;
    }
 
    private int clickedColumn(Block shelf, Vector clickedPosition) {
       if (clickedPosition == null) {
          return 1;
       }
-      double coordinate = clickedPosition.getX();
-      if (shelf.getBlockData() instanceof Directional directional) {
-         coordinate = switch (directional.getFacing()) {
-            case SOUTH -> 1.0 - clickedPosition.getX();
-            case EAST -> clickedPosition.getZ();
-            case WEST -> 1.0 - clickedPosition.getZ();
-            default -> clickedPosition.getX();
-         };
+
+      double local = switch (shelf.getBlockData() instanceof Directional directional ? directional.getFacing() : BlockFace.NORTH) {
+         case NORTH -> clickedPosition.getX();
+         case SOUTH -> 1.0 - clickedPosition.getX();
+         case EAST -> clickedPosition.getZ();
+         case WEST -> 1.0 - clickedPosition.getZ();
+         default -> clickedPosition.getX();
+      };
+      local = Math.max(0.0, Math.min(0.999999, local));
+
+      // Shelf inventory slots are displayed right-to-left. This is identical to Minerva.selectedShelfSlot().
+      if (local < 1.0 / 3.0) {
+         return 2;
       }
-      return Math.max(0, Math.min(2, (int)Math.floor(coordinate * 3.0)));
+      return local < 2.0 / 3.0 ? 1 : 0;
    }
 
    private SlotMachineManager.Symbol randomPreview(boolean jackpotMode) {
@@ -438,8 +474,10 @@ final class SlotMachineManager implements Listener {
       private final boolean jackpotMode;
       private final String machineKey;
       private BukkitTask task;
-      private boolean stopping;
       private int rerolls;
+      private final boolean[] stoppedColumns = new boolean[3];
+      private List<SlotMachineManager.Symbol> pendingResult;
+      private Runnable pendingCompletion;
 
       private SpinSession(Player player, Block shelf, SlotMachineManager.Difficulty difficulty, boolean jackpotMode, String machineKey) {
          this.player = player;
