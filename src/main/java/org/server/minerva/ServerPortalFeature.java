@@ -18,7 +18,11 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.type.EndPortalFrame;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -36,11 +40,13 @@ import org.bukkit.util.Vector;
 final class ServerPortalFeature implements Listener {
    private final Minerva plugin;
    private final NamespacedKey minervaItemKey;
+   private final NamespacedKey frameLabelKey;
    private final Map<UUID, Long> portalUseCooldowns = new ConcurrentHashMap<>();
 
    ServerPortalFeature(Minerva plugin) {
       this.plugin = plugin;
       this.minervaItemKey = new NamespacedKey(plugin, "item");
+      this.frameLabelKey = new NamespacedKey(plugin, "teleporter_frame_label");
    }
 
    ItemStack createServerWand() {
@@ -78,8 +84,13 @@ final class ServerPortalFeature implements Listener {
             event.setCancelled(true);
          } else if (block.getType() == Material.END_PORTAL_FRAME) {
             if (event.getAction().isRightClick()) {
-               this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
-               player.sendMessage(ChatColor.LIGHT_PURPLE + "このエンドポータルフレームの移動先を選択してください。");
+               if (player.isSneaking()) {
+                  this.setCoordinateTarget(block, player.getLocation());
+                  player.sendMessage(ChatColor.GREEN + "現在地をテレポート先として設定しました: " + this.formatLocation(player.getLocation()));
+               } else {
+                  this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
+                  player.sendMessage(ChatColor.LIGHT_PURPLE + "移動先を選択してください。Shift+右クリックで現在地の座標を直接登録できます。");
+               }
             } else if (event.getAction().isLeftClick()) {
                this.clearPortalTarget(block);
                player.sendMessage(ChatColor.GREEN + "テレポーターフレームの移動先設定を解除しました。");
@@ -174,15 +185,20 @@ final class ServerPortalFeature implements Listener {
          return;
       }
 
+      Location coordinateTarget = this.coordinateTarget(frame);
       String target = this.serverPortalTarget(frame);
-      if (target == null || target.isBlank()) {
+      if (coordinateTarget == null && (target == null || target.isBlank())) {
          event.getPlayer().sendMessage(ChatColor.YELLOW + "このエンドポータルフレームには移動先が設定されていません。");
          return;
       }
 
       this.setFrameEye(frame, true);
       event.getPlayer().playSound(event.getPlayer().getLocation(), org.bukkit.Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.8F, 1.1F);
-      this.plugin.teleportToConfigLocation(event.getPlayer(), target);
+      if (coordinateTarget != null) {
+         event.getPlayer().teleport(coordinateTarget);
+      } else {
+         this.plugin.teleportToConfigLocation(event.getPlayer(), target);
+      }
 
       // The inserted eye is only a short visual cue. It must never remain in the frame.
       this.plugin.getServer().getScheduler().runTask(this.plugin, () -> this.setFrameEye(frame, false));
@@ -357,10 +373,13 @@ final class ServerPortalFeature implements Listener {
          Block block = this.blockFromKey(portalKey);
          if (block == null) {
             this.plugin.data().set(this.serverPortalTargetPath(portalKey), targetPath);
+            this.plugin.data().set(this.coordinateTargetPath(portalKey), null);
             this.plugin.saveData();
          } else if (block.getType() == Material.END_PORTAL_FRAME) {
             this.plugin.data().set(this.serverPortalTargetPath(portalKey), targetPath);
+            this.plugin.data().set(this.coordinateTargetPath(portalKey), null);
             this.plugin.saveData();
+            this.refreshFrameLabel(block);
          } else {
             for (String key : this.portalClusterKeys(block)) {
                this.plugin.data().set(this.serverPortalTargetPath(key), targetPath);
@@ -371,11 +390,62 @@ final class ServerPortalFeature implements Listener {
       }
    }
 
+   private void setCoordinateTarget(Block block, Location location) {
+      if (block == null || block.getType() != Material.END_PORTAL_FRAME || location == null || location.getWorld() == null) {
+         return;
+      }
+
+      String key = this.blockKey(block);
+      String path = this.coordinateTargetPath(key);
+      this.plugin.data().set(this.serverPortalTargetPath(key), null);
+      this.plugin.data().set(path + ".world", location.getWorld().getName());
+      this.plugin.data().set(path + ".x", location.getX());
+      this.plugin.data().set(path + ".y", location.getY());
+      this.plugin.data().set(path + ".z", location.getZ());
+      this.plugin.data().set(path + ".yaw", location.getYaw());
+      this.plugin.data().set(path + ".pitch", location.getPitch());
+      this.plugin.saveData();
+      this.refreshFrameLabel(block);
+   }
+
+   private Location coordinateTarget(Block block) {
+      if (block == null) {
+         return null;
+      }
+
+      String path = this.coordinateTargetPath(this.blockKey(block));
+      String worldName = this.plugin.data().getString(path + ".world", "");
+      if (worldName.isBlank()) {
+         return null;
+      }
+
+      World world = this.plugin.getServer().getWorld(worldName);
+      if (world == null) {
+         return null;
+      }
+
+      return new Location(
+         world,
+         this.plugin.data().getDouble(path + ".x"),
+         this.plugin.data().getDouble(path + ".y"),
+         this.plugin.data().getDouble(path + ".z"),
+         (float)this.plugin.data().getDouble(path + ".yaw"),
+         (float)this.plugin.data().getDouble(path + ".pitch")
+      );
+   }
+
+   private String coordinateTargetPath(String key) {
+      return "server-portal-coordinate-targets." + key;
+   }
+
    private void clearPortalTarget(Block block) {
       if (block != null) {
-         this.plugin.data().set(this.serverPortalTargetPath(this.blockKey(block)), null);
+         String key = this.blockKey(block);
+         this.plugin.data().set(this.serverPortalTargetPath(key), null);
+         this.plugin.data().set(this.coordinateTargetPath(key), null);
          this.plugin.saveData();
          this.setFrameEye(block, false);
+         this.refreshFrameLabel(block);
       }
    }
 
@@ -385,6 +455,60 @@ final class ServerPortalFeature implements Listener {
 
    private String serverPortalTargetPath(String key) {
       return "server-portal-targets." + key;
+   }
+
+   private void refreshFrameLabel(Block frame) {
+      if (frame == null || frame.getWorld() == null) {
+         return;
+      }
+
+      String key = this.blockKey(frame);
+      for (Entity entity : frame.getWorld().getNearbyEntities(frame.getLocation().add(0.5, 1.5, 0.5), 2.0, 2.0, 2.0)) {
+         if (entity instanceof TextDisplay display
+            && key.equals(display.getPersistentDataContainer().get(this.frameLabelKey, PersistentDataType.STRING))) {
+            display.remove();
+         }
+      }
+
+      Location direct = this.coordinateTarget(frame);
+      String named = this.serverPortalTarget(frame);
+      if (direct == null && (named == null || named.isBlank())) {
+         return;
+      }
+
+      String label = direct != null ? this.formatLocation(direct) : this.namedTargetLabel(named);
+      TextDisplay display = (TextDisplay)frame.getWorld().spawnEntity(frame.getLocation().add(0.5, 1.45, 0.5), EntityType.TEXT_DISPLAY);
+      display.text(Component.text("§d▶ §f" + label));
+      display.setBillboard(Display.Billboard.CENTER);
+      display.setSeeThrough(true);
+      display.setShadowed(true);
+      display.setPersistent(true);
+      display.getPersistentDataContainer().set(this.frameLabelKey, PersistentDataType.STRING, key);
+   }
+
+   private String namedTargetLabel(String targetPath) {
+      if (targetPath == null || targetPath.isBlank()) {
+         return "未設定";
+      }
+
+      String worldName = this.plugin.getConfig().getString(targetPath + ".world", "");
+      if (!worldName.isBlank()) {
+         double x = this.plugin.getConfig().getDouble(targetPath + ".x");
+         double y = this.plugin.getConfig().getDouble(targetPath + ".y");
+         double z = this.plugin.getConfig().getDouble(targetPath + ".z");
+         return worldName + "  " + this.formatCoordinates(x, y, z);
+      }
+
+      int dot = targetPath.lastIndexOf('.');
+      return dot >= 0 ? targetPath.substring(dot + 1) : targetPath;
+   }
+
+   private String formatLocation(Location location) {
+      return location.getWorld().getName() + "  " + this.formatCoordinates(location.getX(), location.getY(), location.getZ());
+   }
+
+   private String formatCoordinates(double x, double y, double z) {
+      return "X:" + Math.round(x) + " Y:" + Math.round(y) + " Z:" + Math.round(z);
    }
 
    private Set<String> portalClusterKeys(Block origin) {
