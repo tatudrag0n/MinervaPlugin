@@ -52,7 +52,7 @@ final class UtilityItemsFeature implements Listener {
       this.giveMinervaItemIfMissing(
          player,
          "teleporter",
-         this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "右クリック: サーバーショートカット"))
+         this.createMinervaItem(Material.ENDER_EYE, "teleporter", ChatColor.LIGHT_PURPLE + "テレポーター", List.of(ChatColor.GRAY + "対応するエンドポータルフレームに使用して移動", ChatColor.DARK_GRAY + "投げることはできません"))
       );
    }
 

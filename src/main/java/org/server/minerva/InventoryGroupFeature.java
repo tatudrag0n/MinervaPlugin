@@ -86,6 +86,8 @@ public final class InventoryGroupFeature implements Listener {
                } else if (var2 == InventoryGroupFeature.Group.SURVIVAL) {
                   this.clearPlayerState(var1);
                }
+
+               this.ensureInitialItems(var1, var2);
             }
          }
       });
@@ -120,6 +122,8 @@ public final class InventoryGroupFeature implements Listener {
                      } else {
                         this.clearPlayerState(var2);
                      }
+
+                     this.ensureInitialItems(var2, var4);
                   } finally {
                      this.switching.remove(var2.getUniqueId());
                   }
@@ -143,6 +147,12 @@ public final class InventoryGroupFeature implements Listener {
       }
 
       this.switching.remove(var2.getUniqueId());
+   }
+
+   private void ensureInitialItems(Player player, InventoryGroupFeature.Group group) {
+      if (group == InventoryGroupFeature.Group.SURVIVAL && this.plugin instanceof Minerva minerva) {
+         minerva.giveInitialItemsAfterInventoryRestore(player);
+      }
    }
 
    private InventoryGroupFeature.Group groupOf(World var1) {

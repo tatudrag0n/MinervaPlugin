@@ -17,6 +17,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Orientable;
+import org.bukkit.block.data.type.EndPortalFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -25,6 +26,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -73,6 +75,15 @@ final class ServerPortalFeature implements Listener {
          Block block = this.resolveWandTargetBlock(event);
          if (block == null) {
             player.sendMessage(ChatColor.RED + "ブロックをクリックしてください。");
+            event.setCancelled(true);
+         } else if (block.getType() == Material.END_PORTAL_FRAME) {
+            if (event.getAction().isRightClick()) {
+               this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
+               player.sendMessage(ChatColor.LIGHT_PURPLE + "このエンドポータルフレームの移動先を選択してください。");
+            } else if (event.getAction().isLeftClick()) {
+               this.clearPortalTarget(block);
+               player.sendMessage(ChatColor.GREEN + "テレポーターフレームの移動先設定を解除しました。");
+            }
             event.setCancelled(true);
          } else if (event.getAction().isRightClick()) {
             if (this.isServerPortal(block)) {
@@ -143,6 +154,51 @@ final class ServerPortalFeature implements Listener {
 
    boolean isServerPortal(Block block) {
       return block != null && block.getType() == Material.NETHER_PORTAL && this.plugin.data().getStringList("server-portals").contains(this.blockKey(block));
+   }
+
+   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+   public void onTeleporterUse(PlayerInteractEvent event) {
+      if (event.getHand() != EquipmentSlot.HAND || !event.getAction().isRightClick()) {
+         return;
+      }
+
+      ItemStack item = event.getItem();
+      if (!this.isTeleporter(item)) {
+         return;
+      }
+
+      // Always cancel vanilla Ender Eye behaviour: the Minerva teleporter can never be thrown.
+      event.setCancelled(true);
+      Block frame = event.getClickedBlock();
+      if (frame == null || frame.getType() != Material.END_PORTAL_FRAME) {
+         return;
+      }
+
+      String target = this.serverPortalTarget(frame);
+      if (target == null || target.isBlank()) {
+         event.getPlayer().sendMessage(ChatColor.YELLOW + "このエンドポータルフレームには移動先が設定されていません。");
+         return;
+      }
+
+      this.setFrameEye(frame, true);
+      event.getPlayer().playSound(event.getPlayer().getLocation(), org.bukkit.Sound.BLOCK_END_PORTAL_FRAME_FILL, 0.8F, 1.1F);
+      this.plugin.teleportToConfigLocation(event.getPlayer(), target);
+
+      // The inserted eye is only a short visual cue. It must never remain in the frame.
+      this.plugin.getServer().getScheduler().runTask(this.plugin, () -> this.setFrameEye(frame, false));
+   }
+
+   private boolean isTeleporter(ItemStack item) {
+      return item != null
+         && item.hasItemMeta()
+         && "teleporter".equals(item.getItemMeta().getPersistentDataContainer().get(this.minervaItemKey, PersistentDataType.STRING));
+   }
+
+   private void setFrameEye(Block frame, boolean eye) {
+      if (frame != null && frame.getType() == Material.END_PORTAL_FRAME && frame.getBlockData() instanceof EndPortalFrame data) {
+         data.setEye(eye);
+         frame.setBlockData(data, false);
+      }
    }
 
    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
@@ -302,6 +358,9 @@ final class ServerPortalFeature implements Listener {
          if (block == null) {
             this.plugin.data().set(this.serverPortalTargetPath(portalKey), targetPath);
             this.plugin.saveData();
+         } else if (block.getType() == Material.END_PORTAL_FRAME) {
+            this.plugin.data().set(this.serverPortalTargetPath(portalKey), targetPath);
+            this.plugin.saveData();
          } else {
             for (String key : this.portalClusterKeys(block)) {
                this.plugin.data().set(this.serverPortalTargetPath(key), targetPath);
@@ -309,6 +368,14 @@ final class ServerPortalFeature implements Listener {
 
             this.plugin.saveData();
          }
+      }
+   }
+
+   private void clearPortalTarget(Block block) {
+      if (block != null) {
+         this.plugin.data().set(this.serverPortalTargetPath(this.blockKey(block)), null);
+         this.plugin.saveData();
+         this.setFrameEye(block, false);
       }
    }
 

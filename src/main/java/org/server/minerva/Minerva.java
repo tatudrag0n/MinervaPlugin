@@ -820,7 +820,7 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
             List<String> steps = List.of(
                "§6MinerVaへようこそ。まずは初期アイテムを確認しましょう。",
                "§eウォレット§7: MP残高の確認、ショップ購入、スロットに使います。拾ったエメラルドは自動でMPに収納されます。",
-               "§dテレポーター§7: 右クリックでサーバー移動UIを開けます。",
+               "§dテレポーター§7: 対応するエンドポータルフレームに使用すると、そのワールドへ移動できます。",
                "§6ステータス§7: 右クリックでステータスUIを開けます。",
                "§a保護したい拠点は /mva protect でチャンク保護ビーコンを受け取り、設置してください。",
                "§aチュートリアル完了です。もう一度見たい場合は /tutorial を実行してください。"
@@ -849,6 +849,10 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
    }
 
    private void giveInitialItems(Player player) {
+      this.utilityItemsFeature.giveInitialItems(player);
+   }
+
+   void giveInitialItemsAfterInventoryRestore(Player player) {
       this.utilityItemsFeature.giveInitialItems(player);
    }
 
@@ -951,7 +955,8 @@ public final class Minerva extends JavaPlugin implements Listener, TabExecutor {
                   this.tryReincarnate(player, item);
                } else {
                   if (this.isMinervaItem(item, "teleporter") && event.getAction().isRightClick()) {
-                     this.openTeleportUi(player);
+                     // Teleporter use is handled by ServerPortalFeature. Cancelling here also
+                     // prevents the custom Ender Eye from being thrown in the air.
                      event.setCancelled(true);
                   }
                }
