@@ -1,0 +1,41 @@
+name: Apply survival starter items and frame teleporter
+
+on:
+  push:
+    paths:
+      - .github/scripts/implement_survival_initial_items_and_frame_teleporter.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply implementation
+        run: python3 .github/scripts/implement_survival_initial_items_and_frame_teleporter.py
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Build
+        run: mvn -B -DskipTests package
+      - name: Commit source changes
+        run: |
+          if git diff --quiet; then
+            echo "No source changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/main/java/org/server/minerva/UtilityItemsFeature.java \
+            src/main/java/org/server/minerva/InventoryGroupFeature.java \
+            src/main/java/org/server/minerva/ServerPortalFeature.java \
+            src/main/java/org/server/minerva/Minerva.java
+          git commit -m "Give survival starter items and use portal-frame teleporter"
+          git push
