@@ -42,6 +42,7 @@ final class ServerPortalFeature implements Listener {
    private final NamespacedKey minervaItemKey;
    private final NamespacedKey frameLabelKey;
    private final Map<UUID, Long> portalUseCooldowns = new ConcurrentHashMap<>();
+   private final Map<UUID, Location> pendingCoordinateTargets = new ConcurrentHashMap<>();
 
    ServerPortalFeature(Minerva plugin) {
       this.plugin = plugin;
@@ -55,9 +56,10 @@ final class ServerPortalFeature implements Listener {
       meta.displayName(Component.text(ChatColor.LIGHT_PURPLE + "サーバーワンド"));
       meta.lore(
          List.of(
-            Component.text(ChatColor.GRAY + "右クリック: ブロックをサーバーポータル化"),
-            Component.text(ChatColor.GRAY + "ポータルを右クリック: 移動先サーバー設定"),
-            Component.text(ChatColor.GRAY + "左クリック: サーバーポータルを削除")
+            Component.text(ChatColor.GRAY + "Shift+右クリック: 現在地を移動先として記憶"),
+            Component.text(ChatColor.GRAY + "エンドポータルフレームを右クリック: 記憶した移動先を登録"),
+            Component.text(ChatColor.GRAY + "移動先未記憶でフレーム右クリック: 移動先UI"),
+            Component.text(ChatColor.GRAY + "左クリック: 設定解除 / ポータル削除")
          )
       );
       meta.addItemFlags(new ItemFlag[]{ItemFlag.HIDE_ATTRIBUTES});
@@ -78,18 +80,31 @@ final class ServerPortalFeature implements Listener {
          player.sendMessage(ChatColor.RED + "権限がありません。");
          event.setCancelled(true);
       } else {
+         Block clicked = event.getClickedBlock();
+         if (event.getAction().isRightClick()
+            && player.isSneaking()
+            && (clicked == null || clicked.getType() != Material.END_PORTAL_FRAME)) {
+            Location remembered = player.getLocation().clone();
+            this.pendingCoordinateTargets.put(player.getUniqueId(), remembered);
+            player.sendMessage(ChatColor.GREEN + "移動先を記憶しました: " + this.formatLocation(remembered));
+            player.sendMessage(ChatColor.GRAY + "次に、登録したいエンドポータルフレームを右クリックしてください。");
+            event.setCancelled(true);
+            return;
+         }
+
          Block block = this.resolveWandTargetBlock(event);
          if (block == null) {
             player.sendMessage(ChatColor.RED + "ブロックをクリックしてください。");
             event.setCancelled(true);
          } else if (block.getType() == Material.END_PORTAL_FRAME) {
             if (event.getAction().isRightClick()) {
-               if (player.isSneaking()) {
-                  this.setCoordinateTarget(block, player.getLocation());
-                  player.sendMessage(ChatColor.GREEN + "現在地をテレポート先として設定しました: " + this.formatLocation(player.getLocation()));
+               Location remembered = this.pendingCoordinateTargets.remove(player.getUniqueId());
+               if (remembered != null) {
+                  this.setCoordinateTarget(block, remembered);
+                  player.sendMessage(ChatColor.GREEN + "記憶した移動先をこのフレームに登録しました: " + this.formatLocation(remembered));
                } else {
                   this.plugin.openServerPortalTargetUi(player, this.blockKey(block));
-                  player.sendMessage(ChatColor.LIGHT_PURPLE + "移動先を選択してください。Shift+右クリックで現在地の座標を直接登録できます。");
+                  player.sendMessage(ChatColor.LIGHT_PURPLE + "移動先を選択してください。座標登録は、移動先でShift+右クリック → このフレームを右クリックです。");
                }
             } else if (event.getAction().isLeftClick()) {
                this.clearPortalTarget(block);
