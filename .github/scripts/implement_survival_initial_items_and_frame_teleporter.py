@@ -99,4 +99,5 @@ s = replace_once(
 )
 p.write_text(s, encoding="utf-8")
 
+# Workflow trigger marker: v1
 print("Applied survival initial-item and End Portal Frame teleporter changes.")
